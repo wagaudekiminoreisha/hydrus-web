@@ -67,7 +67,7 @@ export function plainPromptTags(text,depth=0) {
 }
 export function inheritedTags(metadata, prefix='') {
   const prompts=promptsAndLinks(metadata), tags=['comfyui outputs'];
-  for (const [side,values] of [['positive_prompt',prompts.positive],['negative_prompt',prompts.negative]]) for (const text of values) for (const tag of plainPromptTags(text)) tags.push((prefix || 'comfyui outputs:')+side+':'+tag);
+  for (const [side,values] of [['positive_prompt',prompts.positive],['negative_prompt',prompts.negative]]) for (const text of values) for (const tag of plainPromptTags(text)) tags.push(prefix+side+':'+tag);
   return cleanTags(tags);
 }
 export function prefixMembers(files,library,prefixId) {

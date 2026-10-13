@@ -12,20 +12,20 @@ const json=value=>new Response(JSON.stringify(value),{headers:{'content-type':'a
 test('PNG prompts become inherited tags and preserve negative conditioning',()=>{
   const metadata={prompt:{1:{class_type:'CLIPTextEncode',inputs:{text:'red, blue'}},2:{class_type:'CLIPTextEncode',inputs:{text:'blur'}},3:{class_type:'KSampler',inputs:{positive:['1',0],negative:['2',0]}}}};
   assert.deepEqual(pngMetadata(png(metadata)),metadata);
-  assert.deepEqual(inheritedTags(metadata),['comfyui outputs','comfyui outputs:positive_prompt:red','comfyui outputs:positive_prompt:blue','comfyui outputs:negative_prompt:blur']);
+  assert.deepEqual(inheritedTags(metadata),['comfyui outputs','positive_prompt:red','positive_prompt:blue','negative_prompt:blur']);
 });
 test('recorded prompt resolutions replace templates and include source-prefix terms',()=>{
   const metadata={prompt:{1:{class_type:'GalleryPromptEncode',inputs:{text:'{red|blue}, ⟦source⟧',source_text:['s',4]}},s:{class_type:'GalleryImageSource',inputs:{sources:JSON.stringify({layout:'single',images:[{prompt:{positive:'source tag'}}]})}},2:{class_type:'KSampler',inputs:{positive:['1',0]}}},gallery_prompts:{1:{resolved:'red, source tag'}}};
-  assert.deepEqual(inheritedTags(metadata),['comfyui outputs','comfyui outputs:positive_prompt:red','comfyui outputs:positive_prompt:source tag']);
+  assert.deepEqual(inheritedTags(metadata),['comfyui outputs','positive_prompt:red','positive_prompt:source tag']);
   delete metadata.gallery_prompts;metadata.prompt[1].inputs.text='red, ⟦source⟧';
-  assert.deepEqual(inheritedTags(metadata),['comfyui outputs','comfyui outputs:positive_prompt:red','comfyui outputs:positive_prompt:source tag']);
+  assert.deepEqual(inheritedTags(metadata),['comfyui outputs','positive_prompt:red','positive_prompt:source tag']);
 });
 test('watchers require two stable scans, retain originals and persist deduplication',async t=>{
   const calls=[];const {directory,store}=await fixture(t,async(url,options)=>{calls.push({url:String(url),body:options.body});return String(url).includes('/add_files/add_file')?json({status:1,hash:'a'.repeat(64)}):json({});});
   const folder=path.join(directory,'media');await fs.mkdir(folder);const file=path.join(folder,'output.png');await fs.writeFile(file,png({prompt:{1:{class_type:'CLIPTextEncode',inputs:{text:'blue sky'}}}}));
   const rule=await store.addFolder({path:folder,tags:['source:folder'],inheritPrompts:true,archive:true});
   await store.scan(true);assert.equal(calls.length,0);await store.scan(true);assert.equal(calls.filter(call=>call.url.includes('/add_files/add_file')).length,1);
-  const tagBody=JSON.parse(calls.find(call=>call.url.includes('/add_tags/add_tags')).body);assert.deepEqual(tagBody.service_keys_to_tags.abcd,['source:folder','comfyui outputs','comfyui outputs:positive_prompt:blue sky']);
+  const tagBody=JSON.parse(calls.find(call=>call.url.includes('/add_tags/add_tags')).body);assert.deepEqual(tagBody.service_keys_to_tags.abcd,['source:folder','comfyui outputs','positive_prompt:blue sky']);
   assert(await fs.stat(file));assert.equal(rule.imported,1);await store.scan(true);assert.equal(calls.filter(call=>call.url.includes('/add_files/add_file')).length,1);
   const reloaded=new IntegrationStore(store.directory,{fetcher:store.fetcher});await reloaded.load();await reloaded.scan(true);assert.equal(calls.filter(call=>call.url.includes('/add_files/add_file')).length,1);
   await store.setFolderEnabled(rule.id,false);await fs.writeFile(path.join(folder,'new.png'),png({}));await store.scan(true);assert.equal(rule.imported,1);
@@ -68,10 +68,10 @@ test('metadata sync updates an existing Hydrus file without importing it again',
   const calls=[],hash='a'.repeat(64),metadata={prompt:{1:{class_type:'CLIPTextEncode',inputs:{text:'red'}}}};
   const {store}=await fixture(t,async(url,options)=>{const endpoint=new URL(url).pathname;calls.push({endpoint,body:options.body});if(endpoint==='/Gallery/source/hashes')return json({hashes:{'/static_gallery/a.png':hash}});if(endpoint==='/get_files/file_metadata')return json({metadata:[{hash,is_local:true}]});return json({});});
   store.registerAsset({id:'local',source:'comfy',url:'/static_gallery/a.png',metadata});store.registerAsset({id:'remote',source:'hydrus',hash});
-  const result=await store.syncMetadata('remote',true);assert.deepEqual(result.tags,['comfyui outputs','comfyui outputs:positive_prompt:red']);assert(!calls.some(call=>call.endpoint==='/add_files/add_file'));assert(calls.some(call=>call.endpoint==='/add_notes/set_notes'));
+  const result=await store.syncMetadata('remote',true);assert.deepEqual(result.tags,['comfyui outputs','positive_prompt:red']);assert(!calls.some(call=>call.endpoint==='/add_files/add_file'));assert(calls.some(call=>call.endpoint==='/add_notes/set_notes'));
 });
 
 test('inherited prompt tags drop weights and emphasis without guessing unresolved alternatives',()=>{
   const metadata={prompt:{1:{class_type:'CLIPTextEncode',inputs:{text:'(blue sky:1.3), [smile], (red, green:1.2), {unknown|choice}'}}}};
-  assert.deepEqual(inheritedTags(metadata),['comfyui outputs','comfyui outputs:positive_prompt:blue sky','comfyui outputs:positive_prompt:smile','comfyui outputs:positive_prompt:red','comfyui outputs:positive_prompt:green']);
+  assert.deepEqual(inheritedTags(metadata),['comfyui outputs','positive_prompt:blue sky','positive_prompt:smile','positive_prompt:red','positive_prompt:green']);
 });

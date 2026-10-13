@@ -36,7 +36,7 @@ Configuration and completed-import signatures are saved in `~/.hydrus-web-integr
 
 Open **Automatic import folders**, enter an absolute directory on the bridge computer, then select recursive scanning, fixed tags, the inherited tag prefix, optional prefix association, and archive behavior. Save the rule. A file must have the same size and modification time in two scans before it imports. Completed imports survive restarts; tagging/note failures are retried before a file is marked complete. Originals are retained, symlinks are skipped, and imports are limited to 512 MB per file.
 
-**Inherit PNG prompts** reads ComfyUI's PNG metadata. Inherited tags default to the `comfyui outputs:` namespace and include a `comfyui outputs` marker. A custom inherited-tag prefix can replace the default namespace. Choosing a prefix associates the imported Hydrus hash with that prefix in ComfyUI-Gallery.
+**Inherit PNG prompts** reads ComfyUI's PNG metadata. Prompt inheritance adds the standalone `comfyui outputs` tag alongside `positive_prompt:` and `negative_prompt:` tags. An optional custom inherited-tag prefix applies only when explicitly configured. Choosing a prefix associates the imported Hydrus hash with that prefix in ComfyUI-Gallery.
 
 Uncheck **Automatically import this directory** to configure a local download folder for viewing/export without automatic imports. Paused folders remain available in **Configured local folders**. Scanning is handled by this bridge; it does not create or change the main Hydrus client's native import-folder objects, which its public API does not expose.
 
