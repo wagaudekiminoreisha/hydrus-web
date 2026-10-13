@@ -70,3 +70,8 @@ test('metadata sync updates an existing Hydrus file without importing it again',
   store.registerAsset({id:'local',source:'comfy',url:'/static_gallery/a.png',metadata});store.registerAsset({id:'remote',source:'hydrus',hash});
   const result=await store.syncMetadata('remote',true);assert.deepEqual(result.tags,['comfyui outputs','comfyui outputs:positive_prompt:red']);assert(!calls.some(call=>call.endpoint==='/add_files/add_file'));assert(calls.some(call=>call.endpoint==='/add_notes/set_notes'));
 });
+
+test('inherited prompt tags drop weights and emphasis without guessing unresolved alternatives',()=>{
+  const metadata={prompt:{1:{class_type:'CLIPTextEncode',inputs:{text:'(blue sky:1.3), [smile], (red, green:1.2), {unknown|choice}'}}}};
+  assert.deepEqual(inheritedTags(metadata),['comfyui outputs','comfyui outputs:positive_prompt:blue sky','comfyui outputs:positive_prompt:smile','comfyui outputs:positive_prompt:red','comfyui outputs:positive_prompt:green']);
+});

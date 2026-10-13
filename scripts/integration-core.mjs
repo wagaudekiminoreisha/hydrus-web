@@ -58,9 +58,16 @@ export function promptsAndLinks(metadata) {
   if (!positive.length) positive.push(...Object.values(prompt).filter(node=>node?.class_type?.includes('TextEncode') || node?.class_type==='GalleryPromptEncode').flatMap(node=>typeof node.inputs?.text==='string'?[node.inputs.text]:[]));
   return {positive:cleanTags(positive),negative:cleanTags(negative),parents:[...hashes],prefixIds:[...prefixIds]};
 }
+export function plainPromptTags(text,depth=0) {
+  if(depth>32)return [];
+  let start=0,round=0,square=0,braces=0;const parts=[];
+  for(let at=0;at<text.length;at++){const char=text[at];if(char==='\\'){at++;continue;}if(char==='(')round++;else if(char===')')round=Math.max(0,round-1);else if(char==='[')square++;else if(char===']')square=Math.max(0,square-1);else if(char==='{')braces++;else if(char==='}')braces=Math.max(0,braces-1);else if((char===','||char==='\n')&&!round&&!square&&!braces){parts.push(text.slice(start,at));start=at+1;}}
+  parts.push(text.slice(start));
+  return parts.flatMap(part=>{let tag=part.trim();if(!tag)return [];const weighted=/^\((.*):[-+]?\d+(?:\.\d+)?\)$/s.exec(tag);if(weighted)return plainPromptTags(weighted[1],depth+1);if((tag.startsWith('(')&&tag.endsWith(')'))||(tag.startsWith('[')&&tag.endsWith(']')))return plainPromptTags(tag.slice(1,-1),depth+1);if(tag.includes('{')||tag.includes('}'))return [];return [tag.replace(/\\([()])/g,'$1')];});
+}
 export function inheritedTags(metadata, prefix='') {
   const prompts=promptsAndLinks(metadata), tags=['comfyui outputs'];
-  for (const [side,values] of [['positive_prompt',prompts.positive],['negative_prompt',prompts.negative]]) for (const text of values) for (const tag of text.split(/,(?![^{}]*\})/).map(value=>value.trim()).filter(Boolean)) tags.push((prefix || 'comfyui outputs:')+side+':'+tag);
+  for (const [side,values] of [['positive_prompt',prompts.positive],['negative_prompt',prompts.negative]]) for (const text of values) for (const tag of plainPromptTags(text)) tags.push((prefix || 'comfyui outputs:')+side+':'+tag);
   return cleanTags(tags);
 }
 export function prefixMembers(files,library,prefixId) {
