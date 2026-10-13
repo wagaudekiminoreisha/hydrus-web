@@ -10,6 +10,7 @@ import { HydrusApiSettingsGuard } from './hydrus-api-settings.guard';
 import { UploadFileComponent } from './upload-file/upload-file.component';
 
 const routes: Routes = [
+  {path: 'integration', loadComponent: () => import('./integration/integration.component').then(module => module.IntegrationComponent)},
   {path: '', component: BrowseComponent, pathMatch: 'full', canActivate: [HydrusApiSettingsGuard]},
   {path: 'pages', component: PagesComponent, canActivate: [HydrusApiSettingsGuard]},
   {path: 'send', component: SendComponent, canActivate: [HydrusApiSettingsGuard]},

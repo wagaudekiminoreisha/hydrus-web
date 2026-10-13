@@ -18,6 +18,8 @@ export interface AppSettingsV1 {
   uploadFilenameTagService: string;
   mediaAutoplay: boolean;
   mediaLoop: boolean;
+  mediaPlayNext: boolean;
+  slideshowIntervalSeconds: number;
   mediaDefaultMuted: boolean;
   themeEnabled: boolean;
   themeColor: string;
@@ -44,6 +46,8 @@ export const defaultAppSettings: AppSettings = {
   uploadFilenameTagService: '',
   mediaAutoplay: true,
   mediaLoop: true,
+  mediaPlayNext: false,
+  slideshowIntervalSeconds: 5,
   mediaDefaultMuted: false,
   themeEnabled: false,
   themeColor: '#3f51b5',

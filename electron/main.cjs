@@ -2,6 +2,10 @@ const {app, BrowserWindow, shell} = require('electron');
 const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
+const {randomBytes}=require('node:crypto');
+const {pathToFileURL}=require('node:url');
+let integrationServer;
+let integrationBootstrap;
 
 const appHost = '127.0.0.1';
 const appPort = 47837;
@@ -49,6 +53,11 @@ function resolveWebFile(requestUrl) {
 function startWebServer() {
   return new Promise((resolve, reject) => {
     const server = http.createServer((request, response) => {
+      if(request.url==='/__integration/bootstrap') {
+        const origin=`http://${appHost}:${appPort}`;
+        if(request.method!=='GET'||request.headers.host!==`${appHost}:${appPort}`||(request.headers.origin&&request.headers.origin!==origin)) {response.writeHead(403).end('Forbidden');return;}
+        response.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'}).end(JSON.stringify(integrationBootstrap||{}));return;
+      }
       const filePath = resolveWebFile(request.url || '/');
 
       if (!filePath) {
@@ -78,6 +87,7 @@ function startWebServer() {
 
 function createWindow() {
   const window = new BrowserWindow({
+    show: !process.env.HYDRUS_WEB_HEADLESS_QA,
     width: 1440,
     height: 900,
     minWidth: 760,
@@ -106,6 +116,7 @@ function createWindow() {
   void window.loadURL(appOrigin);
 }
 
+if(process.env.HYDRUS_WEB_QA_USER_DATA) app.setPath('userData',path.resolve(process.env.HYDRUS_WEB_QA_USER_DATA));
 const ownsInstance = app.requestSingleInstanceLock();
 
 if (!ownsInstance) {
@@ -115,6 +126,14 @@ if (!ownsInstance) {
 
   app.setAppUserModelId('io.github.hydrusweb.desktop');
   app.whenReady().then(async () => {
+    try {
+    const {createIntegrationServer}=await import(pathToFileURL(path.join(__dirname,'..','scripts','integration-server.mjs')).href);
+    const token=randomBytes(32).toString('hex');
+    const integration=await createIntegrationServer({token,directory:path.join(app.getPath('userData'),'integration'),origins:[`http://${appHost}:${appPort}`]});
+    integrationServer=integration.server;
+    await new Promise((resolve,reject)=>{integrationServer.once('error',reject);integrationServer.listen(0,appHost,resolve);});
+    integrationBootstrap={url:`http://${appHost}:${integrationServer.address().port}`,token};
+    } catch(error) { console.warn('Optional integration bridge could not start: '+error.message); integrationBootstrap={error:'The local integration bridge could not start. Check its saved configuration.'}; }
     server = await startWebServer();
     createWindow();
 
@@ -145,6 +164,6 @@ if (!ownsInstance) {
   });
 
   app.on('before-quit', () => {
-    server?.close();
+    server?.close(); integrationServer?.close();
   });
 }

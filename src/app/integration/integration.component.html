@@ -1,0 +1,65 @@
+<section class="integration">
+  <h1>ComfyUI &amp; import folders</h1>
+  <p>Connect the integration bridge running on your computer. Use its HTTPS Tailscale address from your phone or tablet.</p>
+  <div class="controls">
+    <label>Bridge address<input [(ngModel)]="bridgeUrl" type="url" placeholder="http://127.0.0.1:47838"></label>
+    <label>Bridge token<input [(ngModel)]="token" type="password" autocomplete="off"></label>
+    <button (click)="connect()" [disabled]="busy">Connect</button>
+    <button *ngIf="integration.enabled()" (click)="integration.disable(); connected=false">Disable integration</button>
+  </div>
+  <p role="status" aria-live="polite">{{busy ? 'Working…' : status}}</p>
+  <ng-container *ngIf="connected">
+    <details open><summary>Server connections</summary><div class="controls">
+      <label>ComfyUI address<input [(ngModel)]="config.comfyUrl" type="url" placeholder="http://127.0.0.1:8188"></label>
+      <label>Hydrus API address<input [(ngModel)]="config.hydrusUrl" type="url"></label>
+      <label>Hydrus API key<input [(ngModel)]="config.hydrusApiKey" type="password" placeholder="Leave blank to retain the saved key" autocomplete="off"></label>
+      <label>Tag service<select [(ngModel)]="config.tagServiceKey"><option value="">Choose a service</option><option *ngFor="let service of services" [value]="service.service_key">{{service.name}}</option></select></label>
+      <button (click)="configure()" [disabled]="busy">Save integration settings</button>
+    </div></details>
+    <h2>Media workspace</h2>
+    <div class="controls">
+      <label>Source<select [(ngModel)]="source"><option value="both">Hydrus + ComfyUI</option><option value="hydrus">Hydrus</option><option value="comfy">ComfyUI</option><option value="folder">Configured local folders</option></select></label>
+      <label>Tags<input [(ngModel)]="query" placeholder="Comma-separated search tags" (keydown.enter)="search()"></label>
+      <label>Prefix / lineage<select [(ngModel)]="prefixId"><option value="">All media</option><option *ngFor="let prefix of prefixes" [value]="prefix.id">{{prefix.name}}</option></select></label>
+      <label>Order<select [(ngModel)]="order" (change)="sort()"><option value="date">Newest</option><option value="name">Name</option><option value="random">Random</option></select></label>
+      <button (click)="search()" [disabled]="busy">Search / refresh metadata</button>
+      <button *ngIf="order==='random'" (click)="sort()">Reshuffle</button>
+    </div>
+    <div class="controls">
+      <label><input type="checkbox" [(ngModel)]="inherit"> Inherit prompt tags on export</label>
+      <label>Additional tags<input [(ngModel)]="extraTags" placeholder="tag, namespace:tag"></label>
+      <button (click)="transfer('export')" [disabled]="busy||!selected.size">Export selection to Hydrus</button>
+      <button (click)="syncMetadata()" [disabled]="busy||!selected.size">Sync prompts / tags to Hydrus</button>
+      <button (click)="transfer('import')" [disabled]="busy||!selected.size">Copy selection to ComfyUI input</button>
+      <button (click)="selected.clear()" [disabled]="!selected.size">Clear selection ({{selected.size}})</button>
+    </div>
+    <p>Prefix search follows saved associations and source hashes, including paired Hydrus images. It does not require the prefix’s prompt words to match Hydrus tags.</p>
+    <div class="media-grid"><article *ngFor="let asset of assets" [class.selected]="selected.has(asset.id)">
+      <label class="pick"><input type="checkbox" [checked]="selected.has(asset.id)" (change)="toggle(asset)" [attr.aria-label]="'Select '+asset.name"> {{asset.source}}</label>
+      <button class="preview" (click)="open(asset)" [attr.aria-label]="'View '+asset.name"><img *ngIf="asset.thumbnail" [src]="asset.thumbnail" alt=""><span *ngIf="!asset.thumbnail">{{isVideo(asset) ? '▶' : '◇'}}</span><span>{{asset.name}}</span></button>
+      <small *ngIf="asset.depth!==undefined">{{asset.depth===0 ? 'Paired source' : 'Generation '+asset.depth}}</small>
+    </article></div>
+    <details><summary>Manage selected Hydrus tags, parents &amp; aliases</summary>
+      <div class="controls"><label>Action<select [(ngModel)]="tagOperation"><option value="add">Add tags</option><option value="remove">Remove tags</option><option value="replace">Replace tags</option></select></label>
+      <label *ngIf="tagOperation==='replace'">Replacement tag<input [(ngModel)]="replacement"></label><button (click)="syncTags()" [disabled]="busy||!selected.size">Apply tags to selected Hydrus files</button></div>
+      <div class="controls"><label>Parent / alias lookup<input [(ngModel)]="relationshipTag"></label><button (click)="lookupRelationships()" [disabled]="busy||!relationshipTag">Look up relationships</button></div>
+      <p>Parents and aliases are readable through the Hydrus API. Edit their definitions in the main Hydrus client; its public API does not expose those edits.</p>
+      <pre *ngIf="relationships">{{relationships|json}}</pre>
+    </details>
+    <details><summary>Automatic import folders</summary><p>Paths are on the computer running the bridge. The bridge must stay running for scheduled imports. Scans retain originals and skip symlinks.</p>
+      <div class="controls"><label>Directory<input [(ngModel)]="folder.path" placeholder="Absolute folder path"></label><label>Tags<input [(ngModel)]="folder.tags" placeholder="tag, namespace:tag"></label>
+      <label>Inherited tag prefix<input [(ngModel)]="folder.tagPrefix" placeholder="Optional text before inherited tags"></label><label>Associate with prefix<select [(ngModel)]="folder.prefixId"><option value="">None</option><option *ngFor="let prefix of prefixes" [value]="prefix.id">{{prefix.name}}</option></select></label>
+      <label>Scan interval (seconds)<input type="number" min="10" max="86400" [(ngModel)]="folder.intervalSeconds"></label></div>
+      <div class="controls"><label><input type="checkbox" [(ngModel)]="folder.enabled"> Automatically import this directory</label><label><input type="checkbox" [(ngModel)]="folder.recursive"> Include subfolders</label><label><input type="checkbox" [(ngModel)]="folder.inheritPrompts"> Inherit PNG prompts</label><label><input type="checkbox" [(ngModel)]="folder.archive"> Archive imported files</label>
+      <button (click)="addFolder()" [disabled]="busy||!folder.path">Add import folder</button><button (click)="scan()" [disabled]="busy">Scan now</button></div>
+      <article *ngFor="let rule of folders" class="rule"><strong>{{rule.path}}</strong><p>{{rule.enabled?'Enabled':'Paused'}} · {{rule.imported}} imported · every {{rule.intervalSeconds}}s</p><p role="alert" *ngIf="rule.lastError">{{rule.lastError}}</p><button (click)="setFolder(rule)" [disabled]="busy">{{rule.enabled?'Pause':'Resume'}}</button><button (click)="removeFolder(rule)" [disabled]="busy">Remove rule</button></article>
+    </details>
+  </ng-container>
+  <div *ngIf="viewing" class="integration-viewer" role="dialog" aria-modal="true" aria-label="Integration gallery viewer">
+    <div class="viewer-toolbar"><button (click)="closeViewer()">Close</button><button (click)="next(-1)">Previous</button><button (click)="startPlayback()">{{playing?'Pause slideshow':'Play next / slideshow'}}</button><button (click)="next()">Next</button></div>
+    <img *ngIf="viewURL && isImage(viewing)" [src]="viewURL" [alt]="viewing.name" (load)="loaded()">
+    <video #media *ngIf="viewURL && isVideo(viewing)" [src]="viewURL" controls playsinline [autoplay]="playing || settings.appSettings.mediaAutoplay" [muted]="settings.appSettings.mediaDefaultMuted" [loop]="!playing&&settings.appSettings.mediaLoop" (ended)="ended()"></video>
+    <audio #media *ngIf="viewURL && !isImage(viewing)&&!isVideo(viewing)" [src]="viewURL" controls [autoplay]="playing || settings.appSettings.mediaAutoplay" [loop]="!playing&&settings.appSettings.mediaLoop" (ended)="ended()"></audio>
+    <details><summary>Prompts, tags &amp; metadata · {{viewing.name}}</summary><pre>{{viewing.metadata|json}}</pre><p>{{viewing.tags?.join(', ')}}</p></details>
+  </div>
+</section>

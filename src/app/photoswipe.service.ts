@@ -96,6 +96,23 @@ export class PhotoswipeService {
     }
 
     const pswp = new PhotoSwipe(options);
+    let playNext = this.settingsService.appSettings.mediaPlayNext;
+    let slideshowTimer: ReturnType<typeof setTimeout> | undefined;
+    let slideshowButton: HTMLElement | undefined;
+    const clearSlideshow = () => { clearTimeout(slideshowTimer); slideshowTimer = undefined; };
+    const advance = () => { if (!playNext || document.hidden) return; if (this.bottomSheet._openedBottomSheetRef) { slideshowTimer = setTimeout(advance, 1000); return; } if (pswp.currIndex >= items.length - 1) { playNext = false; updateSlideshowButton(); return; } pswp.next(); };
+    const updateSlideshowButton = () => { if(slideshowButton) { slideshowButton.innerText = playNext ? 'Pause' : 'Play next'; slideshowButton.setAttribute('aria-pressed', String(playNext)); } };
+    const scheduleSlideshow = () => {
+      clearSlideshow();
+      const content = pswp.currSlide?.content;
+      if (!playNext || document.hidden || !content) return;
+      const media = content.element?.querySelector<HTMLMediaElement>('.pswp-media');
+      if(media) { media.loop = !playNext && this.settingsService.appSettings.mediaLoop; return; }
+      if(content.isImageContent() && content.state === 'loaded') slideshowTimer = setTimeout(advance, Math.max(1, Number(this.settingsService.appSettings.slideshowIntervalSeconds) || 5) * 1000);
+    };
+    const visibility = () => { if(document.hidden) {clearSlideshow(); pswp.currSlide?.content.element?.querySelector<HTMLMediaElement>('.pswp-media')?.pause();} else scheduleSlideshow(); };
+    document.addEventListener('visibilitychange', visibility);
+    pswp.on('loadComplete', scheduleSlideshow);
 
     let selectionButton: HTMLElement | undefined;
     let selectionActionsButton: HTMLElement | undefined;
@@ -262,6 +279,7 @@ export class PhotoswipeService {
     });
 
     pswp.on('change', () => {
+      scheduleSlideshow();
       this.galleryContextMenu.close();
       updateSelectionUI();
     });
@@ -285,6 +303,7 @@ export class PhotoswipeService {
     });
 
     pswp.on('uiRegister', () => {
+      pswp.ui.registerElement({name:'slideshow',order:10,isButton:true,html:playNext?'Pause':'Play next',title:'Play next / slideshow',onInit:element=>{slideshowButton=element;updateSlideshowButton();},onClick:()=>{playNext=!playNext;updateSlideshowButton();const media=pswp.currSlide?.content.element?.querySelector<HTMLMediaElement>('.pswp-media');if(media){media.loop=!playNext&&this.settingsService.appSettings.mediaLoop;if(playNext)media.play().catch(()=>{});}scheduleSlideshow();}});
       if(selection) {
         pswp.ui.registerElement({
           name: 'select-current',
@@ -492,15 +511,19 @@ export class PhotoswipeService {
         this.bottomSheet.dismiss();
       }
       activeFileHash = activeFile.hash;
+      scheduleSlideshow();
       handleView(activeFile);
       if (isContentType(content, 'video') && content.element) {
         const file = content.data.file as HydrusBasicFile;
         const vid = document.createElement('video');
         vid.src = file.file_url;
-        vid.autoplay = this.settingsService.appSettings.mediaAutoplay;
+        vid.autoplay = playNext || this.settingsService.appSettings.mediaAutoplay;
         vid.controls = !this.platform.FIREFOX;
         vid.poster = file.thumbnail_url;
-        vid.loop = this.settingsService.appSettings.mediaLoop;
+        vid.loop = !playNext && this.settingsService.appSettings.mediaLoop;
+        vid.playsInline = true;
+        vid.setAttribute('webkit-playsinline', '');
+        vid.onended = advance;
         vid.muted = this.settingsService.appSettings.mediaDefaultMuted;
         vid.className = 'pswp-video pswp-media';
         vid.onloadeddata = (e) => {
@@ -514,8 +537,9 @@ export class PhotoswipeService {
         const file = content.data.file as HydrusBasicFile;
         const audio = document.createElement('audio');
         audio.src = file.file_url;
-        audio.autoplay = this.settingsService.appSettings.mediaAutoplay;
-        audio.loop = this.settingsService.appSettings.mediaLoop;
+        audio.autoplay = playNext || this.settingsService.appSettings.mediaAutoplay;
+        audio.loop = !playNext && this.settingsService.appSettings.mediaLoop;
+        audio.onended = advance;
         audio.muted = this.settingsService.appSettings.mediaDefaultMuted;
         audio.controls = true;
         audio.className = 'pswp-audio pswp-media';
@@ -590,6 +614,7 @@ export class PhotoswipeService {
     });
 
     pswp.on('close', () => {
+      clearSlideshow(); document.removeEventListener('visibilitychange', visibility);
       this.galleryContextMenu.close();
       selectionSubscription?.unsubscribe();
       handleView();

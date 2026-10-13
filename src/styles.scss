@@ -664,3 +664,18 @@ mat-icon.mat-mdc-card-avatar {
   //--ngx-json-font-family : font-size
 }
 
+
+// Touch targets and native gesture space for iOS/iPadOS.
+@media (pointer: coarse) {
+  button, .mat-mdc-icon-button, .mat-mdc-menu-item { min-width:44px; min-height:44px; touch-action:manipulation; }
+  input, textarea, select { font-size:16px; }
+  .image-list-link { -webkit-touch-callout:none; user-select:none; touch-action:pan-y pinch-zoom; }
+  .image-list-link:active { filter:brightness(.88); }
+  .pswp__button { min-width:48px; min-height:48px; }
+  .pswp__top-bar { padding-top:env(safe-area-inset-top); padding-left:env(safe-area-inset-left); padding-right:env(safe-area-inset-right); }
+  .pswp__button--slideshow { width:auto; padding:0 12px; color:white; font:600 16px system-ui; }
+  .pswp-media { touch-action:manipulation; }
+}
+.main-content { padding-bottom:env(safe-area-inset-bottom); }
+
+.pswp__button--slideshow {width:auto;min-width:72px;padding:0 12px;color:white;font:600 14px system-ui;}

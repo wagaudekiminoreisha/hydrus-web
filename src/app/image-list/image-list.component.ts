@@ -3,6 +3,7 @@ import {
   OnInit,
   Input,
   OnChanges,
+  OnDestroy,
   ChangeDetectionStrategy,
   ChangeDetectorRef,
   Output,
@@ -33,7 +34,7 @@ import { merge } from 'rxjs';
   styleUrls: ['./image-list.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class ImageListComponent implements OnInit, OnChanges {
+export class ImageListComponent implements OnInit, OnChanges, OnDestroy {
 
   private lastSelectionClick?: {
     fileID: number;
@@ -51,6 +52,13 @@ export class ImageListComponent implements OnInit, OnChanges {
   };
 
   private suppressClickUntil = 0;
+  private touchHold?: {id:number; x:number; y:number; timer:ReturnType<typeof setTimeout>; held:boolean};
+  @HostListener('document:pointermove', ['$event'])
+  cancelMovedTouch(event:PointerEvent) {const hold=this.touchHold;if(hold&&hold.id===event.pointerId&&!hold.held&&Math.hypot(event.clientX-hold.x,event.clientY-hold.y)>10){clearTimeout(hold.timer);this.touchHold=undefined;}}
+  @HostListener('document:pointerup', ['$event'])
+  @HostListener('document:pointercancel', ['$event'])
+  finishTouch(event:PointerEvent) {const hold=this.touchHold;if(hold?.id===event.pointerId){clearTimeout(hold.timer);if(hold.held)this.suppressClickUntil=Date.now()+400;this.touchHold=undefined;}}
+
 
   //@Input() files: HydrusBasicFile[] = [];
 
@@ -122,7 +130,9 @@ export class ImageListComponent implements OnInit, OnChanges {
     }
   }
 
+  ngOnDestroy() {if(this.touchHold)clearTimeout(this.touchHold.timer);this.touchHold=undefined;}
   fileClick(event: MouseEvent, file: HydrusBasicFile) {
+    if(this.touchHold){clearTimeout(this.touchHold.timer);if(this.touchHold.held)this.suppressClickUntil=Date.now()+400;this.touchHold=undefined;}
     event.preventDefault();
     if(Date.now() < this.suppressClickUntil) {
       event.stopPropagation();
@@ -174,6 +184,12 @@ export class ImageListComponent implements OnInit, OnChanges {
   }
 
   selectionPointerDown(event: PointerEvent, file: HydrusBasicFile) {
+    if(event.pointerType==='touch'&&!event.isPrimary){if(this.touchHold)clearTimeout(this.touchHold.timer);this.touchHold=undefined;return;}
+    if(event.pointerType==='touch'&&!this.selectionActive()) {
+      if(this.touchHold)clearTimeout(this.touchHold.timer);
+      const hold={id:event.pointerId,x:event.clientX,y:event.clientY,held:false,timer:setTimeout(()=>{hold.held=true;this.selectToggle(file);this.suppressClickUntil=Date.now()+1500;this.cdr.markForCheck();},450)};
+      this.touchHold=hold;return;
+    }
     if(
       !this.selectionActive()
       || event.button !== 0

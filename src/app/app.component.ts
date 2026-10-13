@@ -1,3 +1,4 @@
+import { IntegrationService } from './integration.service';
 import { Component, ViewChild, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { Observable, Subject } from 'rxjs';
@@ -32,7 +33,7 @@ export class AppComponent implements OnInit {
       share()
   );
 
-  constructor(
+  constructor(public integration: IntegrationService,
     private breakpointObserver: BreakpointObserver,
     private updates: SwUpdate,
     private snackBar: MatSnackBar,

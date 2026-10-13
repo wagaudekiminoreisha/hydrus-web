@@ -150,3 +150,9 @@ Run `ng e2e` to execute the end-to-end tests via [Protractor](http://www.protrac
 ### Further help
 
 To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI README](https://github.com/angular/angular-cli/blob/master/README.md).
+
+## ComfyUI integration, import folders and playback
+
+Open Settings to set up the optional integration workspace. It combines Hydrus and ComfyUI media, searches saved prefix/lineage associations, transfers media and prompt metadata, manages selected file tags, and runs configurable directory imports through the integration bridge. Desktop builds include a private bridge; browser/iOS clients connect to a bridge on the computer holding their media.
+
+See [COMFYUI_INTEGRATION.md](COMFYUI_INTEGRATION.md) for setup, Tailscale access, API capabilities and validation. File Viewing settings now include Play next / slideshow and an image interval. Mobile thumbnails support long-press selection and the viewer uses inline playback and larger touch targets.

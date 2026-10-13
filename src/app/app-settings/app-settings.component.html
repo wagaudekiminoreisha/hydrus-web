@@ -23,6 +23,8 @@
     <app-tag-input formControlName="favoriteTags" [enableFavorites]="false" [enableOrSearch]="false" [enableSiblingParentsDialog]="false" placeholder="Favorite tags" class=""></app-tag-input>
     <h2 class="mat-headline-6">File Viewing</h2>
     <mat-slide-toggle color="primary" formControlName="mediaAutoplay" class="margin-bottom-16">Autoplay video and audio files</mat-slide-toggle>
+    <mat-slide-toggle color="primary" formControlName="mediaPlayNext" class="margin-bottom-16">Play next / slideshow (advance after video or audio ends)</mat-slide-toggle>
+    <mat-form-field appearance="outline"><mat-label>Image slideshow interval (seconds)</mat-label><input matInput type="number" min="1" max="3600" formControlName="slideshowIntervalSeconds"></mat-form-field>
     <mat-slide-toggle color="primary" formControlName="mediaLoop" class="margin-bottom-16">Loop video and audio files</mat-slide-toggle>
     <mat-slide-toggle color="primary" formControlName="mediaDefaultMuted" class="margin-bottom-16">Video and audio files start muted</mat-slide-toggle>
     <mat-slide-toggle color="primary" formControlName="sendViews" class="margin-bottom-16">Submit views and view durations to Hydrus</mat-slide-toggle>

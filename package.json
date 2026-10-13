@@ -1,6 +1,6 @@
 {
   "name": "hydrus-web",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "A web, mobile, and desktop interface for the Hydrus Client API.",
   "author": "Hydrus Web contributors",
   "main": "electron/main.cjs",
@@ -24,7 +24,9 @@
     "postinstall": "patch-package",
     "prebuild": "node version-info.js",
     "postversion": "node version-info.js",
-    "docker-build": "npm run build"
+    "docker-build": "npm run build",
+    "integration": "node scripts/integration-server.mjs",
+    "test:integration": "node --test scripts/integration*.test.mjs"
   },
   "license": "MIT",
   "private": true,
@@ -37,7 +39,9 @@
     "files": [
       "electron/**/*",
       "dist/hydrus-web/**/*",
-      "package.json"
+      "package.json",
+      "scripts/integration-core.mjs",
+      "scripts/integration-server.mjs"
     ],
     "win": {
       "target": [

@@ -11,3 +11,6 @@
 .selection-mode .image-list-link {
   cursor: cell;
 }
+
+.touch-selection-hint {display:none;}
+@media(pointer:coarse){.touch-selection-hint {display:block;padding:8px 12px;margin:0;font-size:13px;}}

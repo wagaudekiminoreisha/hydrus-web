@@ -22,6 +22,9 @@
         <mat-icon matListItemIcon>upload</mat-icon>
         Upload Files
       </a>
+      @if(integration.enabled()) {
+        <a mat-list-item routerLink="/integration" routerLinkActive="drawer-list-item-active" (click)="drawer.close()"><mat-icon matListItemIcon>sync</mat-icon>ComfyUI &amp; import folders</a>
+      }
       <a mat-list-item routerLink="/settings" routerLinkActive="drawer-list-item-active" (click)="drawer.close()">
         <mat-icon matListItemIcon>settings</mat-icon>
         Settings

@@ -1,3 +1,4 @@
+<p class="touch-selection-hint">Hold a thumbnail to select it, then tap more. Swipe to scroll.</p>
 <virtual-scroller class="virtual-scroll" [class.selection-mode]="selectionActive()" #scroll [items]="files()" (vsEnd)="vsEnd($event)"
   [parentScroll]="scrollElement" [bufferAmount]="24">
   <ul class="mdc-image-list browse-image-list" #container>
@@ -8,6 +9,7 @@
           [href]="file.file_url"
           [draggable]="false"
           (pointerdown)="selectionPointerDown($event, file)"
+          (pointerup)="finishTouch($event)" (pointercancel)="finishTouch($event)" (pointermove)="cancelMovedTouch($event)"
           (pointerenter)="selectionPointerEnter($event, file)"
           (click)="fileClick($event, file)"
           (dblclick)="fileDoubleClick($event, file)"
