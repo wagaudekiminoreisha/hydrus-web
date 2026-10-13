@@ -41,7 +41,7 @@ export async function createIntegrationServer({token,origins=[],directory,fetche
       if(url.pathname==='/sync'&&request.method==='POST')return json(await store.syncMetadata(body.id,body.inherit,body.tags));
       if(url.pathname==='/import'&&request.method==='POST')return json(await store.importToComfy(body.id));
       if(url.pathname==='/tags'&&request.method==='POST')return json(await store.manageTags(body));
-      if(url.pathname.startsWith('/media/')){const result=await store.media(mediaID,url.searchParams.get('thumbnail')==='1',request.headers.range);response.statusCode=result.status;for(const header of ['content-length','content-range','accept-ranges'])if(result.headers.get(header))response.setHeader(header,result.headers.get(header));response.setHeader('Content-Type',result.headers.get('content-type')||'application/octet-stream');Readable.fromWeb(result.body).on('error',()=>response.destroy()).pipe(response);return;}
+      if(url.pathname.startsWith('/media/')){const result=await store.media(mediaID,url.searchParams.get('thumbnail')==='1',request.headers.range);response.statusCode=result.status;for(const header of ['content-length','content-range','accept-ranges'])if(result.headers.get(header))response.setHeader(header,result.headers.get(header));response.setHeader('Content-Type',result.headers.get('content-type')||'application/octet-stream');if(!result.body){response.end();return;}Readable.fromWeb(result.body).on('error',()=>response.destroy()).pipe(response);return;}
       response.writeHead(404);json({error:'Unknown integration endpoint.'});
     }catch(error){if(response.headersSent){response.destroy();return;}response.writeHead(400);json({error:error.message});}
   });

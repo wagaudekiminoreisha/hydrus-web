@@ -14,6 +14,12 @@ test('PNG prompts become inherited tags and preserve negative conditioning',()=>
   assert.deepEqual(pngMetadata(png(metadata)),metadata);
   assert.deepEqual(inheritedTags(metadata),['comfyui outputs','comfyui outputs:positive_prompt:red','comfyui outputs:positive_prompt:blue','comfyui outputs:negative_prompt:blur']);
 });
+test('recorded prompt resolutions replace templates and include source-prefix terms',()=>{
+  const metadata={prompt:{1:{class_type:'GalleryPromptEncode',inputs:{text:'{red|blue}, ⟦source⟧',source_text:['s',4]}},s:{class_type:'GalleryImageSource',inputs:{sources:JSON.stringify({layout:'single',images:[{prompt:{positive:'source tag'}}]})}},2:{class_type:'KSampler',inputs:{positive:['1',0]}}},gallery_prompts:{1:{resolved:'red, source tag'}}};
+  assert.deepEqual(inheritedTags(metadata),['comfyui outputs','comfyui outputs:positive_prompt:red','comfyui outputs:positive_prompt:source tag']);
+  delete metadata.gallery_prompts;metadata.prompt[1].inputs.text='red, ⟦source⟧';
+  assert.deepEqual(inheritedTags(metadata),['comfyui outputs','comfyui outputs:positive_prompt:red','comfyui outputs:positive_prompt:source tag']);
+});
 test('watchers require two stable scans, retain originals and persist deduplication',async t=>{
   const calls=[];const {directory,store}=await fixture(t,async(url,options)=>{calls.push({url:String(url),body:options.body});return String(url).includes('/add_files/add_file')?json({status:1,hash:'a'.repeat(64)}):json({});});
   const folder=path.join(directory,'media');await fs.mkdir(folder);const file=path.join(folder,'output.png');await fs.writeFile(file,png({prompt:{1:{class_type:'CLIPTextEncode',inputs:{text:'blue sky'}}}}));

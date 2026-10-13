@@ -139,7 +139,7 @@ export class IntegrationStore {
       }}catch(error){rule.lastError=error.message;}
     }await this.save('config.json',this.config);}finally{this.scanning=false;}
   }
-  registerAsset(entry,internal) {const id=entry.id||randomUUID();this.assets.set(id,{...entry,...internal});return {...entry,id};}
+  registerAsset(entry,internal) {const id=entry.id||randomUUID();this.assets.set(id,{...entry,...internal});return {...entry,id,prompts:promptsAndLinks(entry.metadata)};}
   async search({source='both',tags=[],prefixId='',limit=100}={}) {
     limit=Math.max(1,Math.min(200,Number(limit)||100));const entries=[],warnings=[];let comfyOnline=false;let library={prefixes:[],associations:{}},local=[];
     if(this.config.comfyUrl) {try {const settings=await(await this.comfy('/Gallery/settings')).json();this.comfyRoot=settings.relativePath||'./';const [data,prefixes]=await Promise.all([this.comfy('/Gallery/images?relative_path='+encodeURIComponent(this.comfyRoot)).then(r=>r.json()),this.comfy('/Gallery/prefixes').then(r=>r.json())]);comfyOnline=true;library=prefixes.library||prefixes;local=Object.values(data.folders||{}).flatMap(folder=>Object.values(folder)).filter(file=>['image','media'].includes(file.type));if(prefixId&&local.length){const hashes={};for(let at=0;at<local.length;at+=2000)Object.assign(hashes,(await(await this.comfy('/Gallery/source/hashes',{urls:local.slice(at,at+2000).map(file=>file.url)})).json()).hashes);local=local.map(file=>({...file,hash:hashes[file.url]}));}}
@@ -189,7 +189,7 @@ export class IntegrationStore {
     if(Object.keys(metadata).length)await this.hydrus('/add_notes/set_notes',{hash,notes:{'ComfyUI Gallery generation metadata':JSON.stringify(metadata)}});
     const values=cleanTags([...tags,...(inherit?inheritedTags(metadata):[])]);
     if(values.length){if(!this.config.tagServiceKey)throw new Error('Choose a tag service.');await this.hydrus('/add_tags/add_tags',{hash,service_keys_to_tags:{[this.config.tagServiceKey]:values}});}
-    return {hash,metadata,tags:values};
+    return {hash,metadata,tags:values,prompts:promptsAndLinks(metadata)};
   }
   async importToComfy(id) {const asset=this.assets.get(id);if(asset?.source!=='hydrus')throw new Error('Choose a Hydrus file.');const response=await this.media(id),form=new FormData();const type=response.headers.get('content-type')||asset.mime;form.append('image',new Blob([await response.arrayBuffer()],{type}),asset.hash+'.'+(type?.split('/')[1]||'png'));form.append('type','input');form.append('subfolder','hydrus');const result=await this.fetcher(this.config.comfyUrl+'/upload/image',{method:'POST',body:form,signal:AbortSignal.timeout(60000)});if(!result.ok)throw new Error('ComfyUI upload failed: HTTP '+result.status);const saved=await result.json();return (await this.comfy(type.startsWith('image/')?'/Gallery/source/input':'/Gallery/source/provenance',{name:(saved.subfolder?saved.subfolder+'/':'')+saved.name,metadata:{...asset.metadata,gallery_origin:'hydrus',hydrus:asset.remote}})).json();}
   async manageTags({hashes=[],tags=[],operation='add',newTag='',tag=''}) {

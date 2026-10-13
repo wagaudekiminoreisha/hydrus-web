@@ -5,7 +5,7 @@
     <label>Bridge address<input [(ngModel)]="bridgeUrl" type="url" placeholder="http://127.0.0.1:47838"></label>
     <label>Bridge token<input [(ngModel)]="token" type="password" autocomplete="off"></label>
     <button (click)="connect()" [disabled]="busy">Connect</button>
-    <button *ngIf="integration.enabled()" (click)="integration.disable(); connected=false">Disable integration</button>
+    <button *ngIf="integration.enabled()" (click)="integration.disable(); connected=false">Hide integration controls</button>
   </div>
   <p role="status" aria-live="polite">{{busy ? 'Working…' : status}}</p>
   <ng-container *ngIf="connected">
@@ -41,10 +41,11 @@
     </article></div>
     <details><summary>Manage selected Hydrus tags, parents &amp; aliases</summary>
       <div class="controls"><label>Action<select [(ngModel)]="tagOperation"><option value="add">Add tags</option><option value="remove">Remove tags</option><option value="replace">Replace tags</option></select></label>
-      <label *ngIf="tagOperation==='replace'">Replacement tag<input [(ngModel)]="replacement"></label><button (click)="syncTags()" [disabled]="busy||!selected.size">Apply tags to selected Hydrus files</button></div>
+      <label>Tags to add / remove / replace<input [(ngModel)]="extraTags" placeholder="tag, namespace:tag"></label><label *ngIf="tagOperation==='replace'">Replacement tag<input [(ngModel)]="replacement"></label><button (click)="syncTags()" [disabled]="busy||!selected.size">Apply tags to selected Hydrus files</button></div>
       <div class="controls"><label>Parent / alias lookup<input [(ngModel)]="relationshipTag"></label><button (click)="lookupRelationships()" [disabled]="busy||!relationshipTag">Look up relationships</button></div>
       <p>Parents and aliases are readable through the Hydrus API. Edit their definitions in the main Hydrus client; its public API does not expose those edits.</p>
-      <pre *ngIf="relationships">{{relationships|json}}</pre>
+      <article *ngFor="let relationship of relationships"><h3>{{relationship.service}}</h3><p><strong>Preferred tag:</strong> {{relationship.ideal_tag}}</p><p><strong>Aliases:</strong> {{relationship.siblings?.join(', ') || 'None'}}</p><p><strong>Parents:</strong> {{relationship.ancestors?.join(', ') || 'None'}}</p><p><strong>Children:</strong> {{relationship.descendants?.join(', ') || 'None'}}</p></article>
+      <p *ngIf="relationships && !relationships.length">No relationships found.</p>
     </details>
     <details><summary>Automatic import folders</summary><p>Paths are on the computer running the bridge. The bridge must stay running for scheduled imports. Scans retain originals and skip symlinks.</p>
       <div class="controls"><label>Directory<input [(ngModel)]="folder.path" placeholder="Absolute folder path"></label><label>Tags<input [(ngModel)]="folder.tags" placeholder="tag, namespace:tag"></label>
@@ -60,6 +61,7 @@
     <img *ngIf="viewURL && isImage(viewing)" [src]="viewURL" [alt]="viewing.name" (load)="loaded()">
     <video #media *ngIf="viewURL && isVideo(viewing)" [src]="viewURL" controls playsinline [autoplay]="playing || settings.appSettings.mediaAutoplay" [muted]="settings.appSettings.mediaDefaultMuted" [loop]="!playing&&settings.appSettings.mediaLoop" (ended)="ended()"></video>
     <audio #media *ngIf="viewURL && !isImage(viewing)&&!isVideo(viewing)" [src]="viewURL" controls [autoplay]="playing || settings.appSettings.mediaAutoplay" [loop]="!playing&&settings.appSettings.mediaLoop" (ended)="ended()"></audio>
-    <details><summary>Prompts, tags &amp; metadata · {{viewing.name}}</summary><pre>{{viewing.metadata|json}}</pre><p>{{viewing.tags?.join(', ')}}</p></details>
+    <div><p><strong>Positive prompt:</strong> {{viewing.prompts?.positive?.join(', ') || '—'}}</p><p><strong>Negative prompt:</strong> {{viewing.prompts?.negative?.join(', ') || '—'}}</p><p><strong>Tags:</strong> {{viewing.tags?.join(', ') || '—'}}</p></div>
+    <details><summary>Metadata · {{viewing.name}}</summary><pre>{{viewing.metadata|json}}</pre><p>{{viewing.tags?.join(', ')}}</p></details>
   </div>
 </section>
