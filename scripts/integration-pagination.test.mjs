@@ -7,6 +7,25 @@ import {IntegrationStore} from './integration-core.mjs';
 
 const json=value=>new Response(JSON.stringify(value),{headers:{'content-type':'application/json'}});
 const hash=id=>id.toString(16).padStart(64,'0');
+test('prefix hashes are sorted globally by date across bounded metadata batches',async t=>{
+  const rows=Array.from({length:240},(_,i)=>({hash:hash(i+1),time_imported:i,mime:'image/png'}));
+  const batches=[];
+  const {store}=await fixture(t,async url=>{
+    const parsed=new URL(url);
+    if(parsed.pathname==='/Gallery/settings')return json({});
+    if(parsed.pathname==='/Gallery/images')return json({folders:{}});
+    if(parsed.pathname==='/Gallery/prefixes')return json({library:{prefixes:[{id:'p'}],associations:Object.fromEntries(rows.map(row=>['sha256:'+row.hash,{prefix_id:'p',image:{hash:row.hash}}]))}});
+    if(parsed.pathname==='/get_files/file_metadata'){
+      const keys=JSON.parse(parsed.searchParams.get('hashes'));batches.push(keys.length);
+      return json({metadata:rows.filter(row=>keys.includes(row.hash))});
+    }
+    throw new Error(parsed.pathname);
+  });
+  let page=await store.search({prefixId:'p',source:'both',order:'date',limit:48}),entries=[...page.entries];
+  while(page.nextCursor){page=await store.search({cursor:page.nextCursor});entries.push(...page.entries);}
+  assert.deepEqual(entries.map(entry=>entry.hash),rows.toReversed().map(row=>row.hash));
+  assert.deepEqual(batches,[200,40]);
+});
 async function fixture(t,fetcher) {
   const directory=await fs.mkdtemp(path.join(tmpdir(),'hydrus-pages-'));
   t.after(()=>fs.rm(directory,{recursive:true,force:true}));

@@ -17,12 +17,17 @@
       <label>Tag service<select [(ngModel)]="config.tagServiceKey"><option value="">Choose a service</option><option *ngFor="let service of services" [value]="service.service_key">{{service.name}}</option></select></label>
       <button (click)="configure()" [disabled]="busy">Save integration settings</button>
     </div></details>
+    <details *ngIf="diagnostics" open><summary>ComfyUI connection diagnostics</summary>
+      <p *ngFor="let check of diagnostics.checks"><strong>{{check.ok ? '✓' : '✗'}} {{check.name}}:</strong> {{check.message}}</p>
+      <button (click)="checkConnection()" [disabled]="busy">Check connection</button>
+      <button *ngIf="diagnostics.instanceId && diagnostics.instanceId !== config.comfyInstanceId" (click)="pairInstance()" [disabled]="busy">Pair this Gallery instance for transfers</button>
+    </details>
     <h2>{{comfyBrowser ? 'ComfyUI media' : 'Media workspace'}}</h2>
     <div class="controls">
-      <label *ngIf="!comfyBrowser">Source<select [(ngModel)]="source" (change)="search()" [disabled]="busy"><option value="both">Hydrus + ComfyUI</option><option value="hydrus">Hydrus</option><option value="comfy">ComfyUI</option><option value="folder">Configured local folders</option></select></label>
+      <label>Source<select aria-label="Source" [(ngModel)]="source" (change)="search()" [disabled]="busy"><option value="both">Hydrus + ComfyUI</option><option value="hydrus">Hydrus</option><option value="comfy">ComfyUI</option><option value="folder">Configured local folders</option></select></label>
       <label>Tags<input [(ngModel)]="query" placeholder="Comma-separated search tags" (keydown.enter)="search()"></label>
-      <label *ngIf="!comfyBrowser">Prefix / lineage<select [(ngModel)]="prefixId" (change)="search()" [disabled]="busy"><option value="">All media</option><option *ngFor="let prefix of prefixes" [value]="prefix.id">{{prefix.name}}</option></select></label>
-      <label>Order<select [(ngModel)]="order" (change)="sort()" [disabled]="busy"><option value="date">Newest</option><option value="name">Name</option><option value="random">Random</option></select></label>
+      <label>Prefix / lineage<select aria-label="Prefix / lineage" [(ngModel)]="prefixId" (change)="search()" [disabled]="busy"><option value="">All media</option><option *ngFor="let prefix of prefixes" [value]="prefix.id">{{prefix.name}}</option></select></label>
+      <label>Order<select aria-label="Order" [(ngModel)]="order" (change)="sort()" [disabled]="busy"><option value="date">Newest</option><option value="name">Name</option><option value="random">Random</option></select></label>
       <button (click)="search()" [disabled]="busy">Search / refresh metadata</button>
       <button *ngIf="order==='random'" (click)="sort()" [disabled]="busy">Reshuffle</button>
     </div>
@@ -37,7 +42,7 @@
     <p *ngIf="!comfyBrowser">Prefix search follows saved associations and source hashes, including paired Hydrus images. It does not require the prefix’s prompt words to match Hydrus tags.</p>
     <div class="media-grid"><article *ngFor="let asset of assets; trackBy: trackAsset" [class.selected]="selected.has(asset.id)" integrationVisible (visible)="loadThumbnail(asset)">
       <label class="pick"><input type="checkbox" [checked]="selected.has(asset.id)" (change)="toggle(asset)" [attr.aria-label]="'Select '+asset.name"> {{asset.source}}</label>
-      <button class="preview" (click)="open(asset)" [attr.aria-label]="'View '+asset.name"><img *ngIf="asset.thumbnail" [src]="asset.thumbnail" loading="lazy" decoding="async" alt=""><span *ngIf="!asset.thumbnail">{{isVideo(asset) ? '▶' : '◇'}}</span><span>{{asset.name}}</span></button>
+      <button class="preview" (click)="open(asset)" [attr.aria-label]="'View '+asset.name"><img *ngIf="asset.thumbnail" [src]="asset.thumbnail" loading="lazy" decoding="async" alt="" (error)="status='Thumbnail unavailable for '+asset.name+'. Check ComfyUI connection diagnostics.'"><span *ngIf="!asset.thumbnail">{{isVideo(asset) ? '▶' : '◇'}}</span><span>{{asset.name}}</span></button>
       <small *ngIf="asset.depth!==undefined">{{asset.depth===0 ? 'Paired source' : 'Generation '+asset.depth}}</small>
     </article></div>
     <div class="load-more" integrationVisible [integrationVisibleOnce]="false" [integrationVisibleEnabled]="hasMore && !busy && !loadingMore && !viewing && !pageError" (visible)="loadMore()">

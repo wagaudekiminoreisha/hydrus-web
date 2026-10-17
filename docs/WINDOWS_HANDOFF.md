@@ -1,5 +1,22 @@
 # Windows handoff — 2026-10-17
 
+## Windows continuation results
+
+The PC checkout is now on `codex/windows-handoff`. The pre-existing PC lockfile edits were reapplied cleanly and are also retained in stash `windows-pc-before-handoff`. No default branch or release was published.
+
+Gallery was cloned separately into `.work/ComfyUI-Gallery` from its current default branch and placed on `codex/windows-integration`. This is an independent Git repository, ignored by the Hydrus checkout. Its source changes and rebuilt tracked web bundle are carried on `codex/windows-integration`; they have not been installed into an existing ComfyUI installation.
+
+- Desktop PhotoSwipe media no longer pauses on visibility changes. Android/iOS retain background pausing; slideshow timers and close cleanup are retained.
+- The ComfyUI browser exposes Source and Prefix / lineage controls, and connection diagnostics check Gallery identity, the catalogue and an actual media response. Root mismatch diagnostics explain when the Gallery monitor needs the selected folder.
+- PromptBoxEditor has one contents/selection conversion control. New content determines the displayed format; mixed content is represented explicitly. Box/chip colours reflect kinds. Legacy outer `box.format` wrappers remain intact and editable, preserving compiled semantics, disabled chips and weights.
+- Floating panels use a shared stacking order, honour requested base layers, and raise on repeated requests. Viewer metadata, source-prefix, Hydrus export, prompt-library and prefix-editor actions request focus; nested Ant Design popups inherit a layer above their panel.
+- Dev and production server scripts manage the bridge when `HYDRUS_WEB_BRIDGE_TOKEN` is configured. No public credential bootstrap was added. Gallery persists a non-secret installation ID, and transfers require explicit pairing plus destination-side expected-ID checks, including uploads. Redirects and changed instances fail safely.
+- Prefix pagination now establishes global date ordering using metadata batches of at most 200 records before paging. Ordinary cursor retries, stale-result protection and lazy media loading remain in place.
+
+Verified on Windows: both production builds; 20 Hydrus integration tests; 30 Gallery prompt/batch unit tests; Gallery identity persistence and destination-rejection test; Hydrus integration, pagination, playback and desktop/Android visibility browser fixtures; Gallery batch controls, encoder, window hierarchy and layout-persistence browser fixtures. Builds report bundle-size/CommonJS warnings. Fixtures use isolated simulated media and services.
+
+**Remaining live verification:** no ComfyUI listener on the usual local ports or ComfyUI Python process was found. Obtain the user's running ComfyUI URL, install the Gallery changes into the intended installation while preserving its local changes, restart ComfyUI, configure/pair through Hydrus Web, and verify actual files. Do not describe the live installation as connected or updated yet. See `COMFYUI_INTEGRATION.md` for setup and pairing.
+
 The user requested moving this work from Mac.fritz.box to the connected Windows PC (Betül). Continue development there; avoid heavy builds on the Mac, which has been constrained by swap/disk space and iCloud hydration timeouts.
 
 ## Repositories

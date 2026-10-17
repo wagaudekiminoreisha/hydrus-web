@@ -30,6 +30,7 @@ export async function createIntegrationServer({token,origins=[],directory,fetche
       if(request.method==='POST'){const chunks=[];let size=0;for await(const chunk of request){size+=chunk.length;if(size>1024*1024)throw new Error('Request body too large.');chunks.push(chunk);}body=JSON.parse(Buffer.concat(chunks).toString()||'{}');}
       if(url.pathname==='/ticket'&&request.method==='POST'){if(!store.assets.has(body.id))throw new Error('Search again to load this media.');for(const [key,ticket] of tickets)if(ticket.expires<Date.now())tickets.delete(key);const key=randomUUID();tickets.set(key,{id:body.id,thumbnail:body.thumbnail===true,expires:Date.now()+3600000});return json({ticket:key});}
       if(url.pathname==='/health')return json({ok:true,version:1,capabilities:{importFolders:true,comfyGallery:true,editFileTags:true,readTagRelationships:true,editTagRelationships:false}});
+      if(url.pathname==='/diagnostics')return json(await store.diagnostics());
       if(url.pathname==='/config')return json(request.method==='POST'?await store.configure(body):store.publicConfig());
       if(url.pathname==='/folders')return json(request.method==='POST'?await store.addFolder(body):store.config.folders);
       if(url.pathname==='/folders/update'&&request.method==='POST'){await store.setFolderEnabled(body.id,body.enabled);return json(store.config.folders);}

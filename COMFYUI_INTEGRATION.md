@@ -2,7 +2,7 @@
 
 Update ComfyUI-Gallery as well as Hydrus Web. Restart ComfyUI so the new metadata/provenance routes are available. The integration workspace appears in navigation after a successful setup; ordinary Hydrus browsing remains available independently.
 
-**ComfyUI** is a separate, always-visible navigation entry for Gallery images and videos. It reconnects to the saved bridge and loads ComfyUI media when opened; Hydrus credentials are not required for browsing. For a new connection, use **Integration settings & import folders** to save the ComfyUI address, then return to **ComfyUI**. Its search, sorting, selection and viewer operate on ComfyUI media only. The existing integration workspace remains available for transfers and import-folder configuration.
+**ComfyUI** is a separate, always-visible navigation entry for Gallery images and videos. It reconnects to the saved bridge and loads ComfyUI media when opened; Hydrus credentials are not required for browsing. For a new connection, use **Integration settings & import folders** to save the ComfyUI address, then return to **ComfyUI**. It starts with ComfyUI media; Source and Prefix / lineage can switch to Gallery targets or mixed Hydrus views. The integration workspace remains available for transfers and import-folder configuration.
 
 ## Desktop setup
 
@@ -19,8 +19,11 @@ From the Hydrus Web repository in PowerShell:
 ```powershell
 $env:HYDRUS_WEB_BRIDGE_TOKEN = (node -p "require('node:crypto').randomBytes(32).toString('hex')")
 $env:HYDRUS_WEB_BRIDGE_ORIGINS = 'http://localhost:8080,http://localhost:4200,capacitor://localhost,http://localhost'
-node scripts/integration-server.mjs
+npm start
+# Or serve the production build: npm run mobile:serve
 ```
+
+Dev mode (`npm start`, including `start:ssl`) and production server mode (`mobile` / `mobile:serve`) manage the bridge when `HYDRUS_WEB_BRIDGE_TOKEN` is configured. Without it, they serve Hydrus Web normally. Reuse the same private token in subsequent sessions. A port conflict fails startup instead of adopting another bridge. The standalone `npm run integration` command remains available. No public bootstrap endpoint exposes credentials.
 
 The default address is `http://127.0.0.1:47838`. Enter this address and the value of `HYDRUS_WEB_BRIDGE_TOKEN` in Hydrus Web's integration setup. If your web app has another origin, include its exact scheme, hostname and port in `HYDRUS_WEB_BRIDGE_ORIGINS`. `capacitor://localhost` is the iOS wrapper's origin.
 
@@ -34,6 +37,12 @@ Use the HTTPS address printed by Tailscale, including `:8443`, as the bridge add
 
 Configuration and completed-import signatures are saved in `~/.hydrus-web-integration`; set `HYDRUS_WEB_BRIDGE_DATA` to use another directory. The Hydrus key is stored on the bridge and excluded from configuration responses. Media uses temporary per-file streaming links; the permanent bridge token is not embedded in media URLs. Hydrus and ComfyUI addresses are interpreted on the bridge computer, so `127.0.0.1` can be used when they run alongside it.
 
+## Connection diagnostics and pairing
+
+After saving the ComfyUI address, inspect **ComfyUI connection diagnostics**. It checks Gallery's identity endpoint, catalogue and one real media stream. A healthy bridge alone does not prove ComfyUI is reachable. If the catalogue and static media roots differ, start Gallery's monitor for the selected folder from ComfyUI; Hydrus Web does not change the monitor configuration.
+
+Select **Pair this Gallery instance for transfers** after checking the displayed installation ID. Gallery persists this non-secret ID in its ComfyUI user directory as `gallery-instance-id`. Keep that file across upgrades; separate installations need separate IDs. Transfers verify the paired identity and include an expected-instance header that Gallery checks before processing requests, including uploads. A reverse proxy that changes installations causes a failure. Redirects are rejected. Pairing a replacement clears cached search assets; refresh the search afterward. Older Gallery versions must be updated and ComfyUI restarted before pairing works.
+
 ## Import folders
 
 Open **Automatic import folders**, enter an absolute directory on the bridge computer, then select recursive scanning, fixed tags, the inherited tag prefix, optional prefix association, and archive behavior. Save the rule. A file must have the same size and modification time in two scans before it imports. Completed imports survive restarts; tagging/note failures are retried before a file is marked complete. Originals are retained, symlinks are skipped, and imports are limited to 512 MB per file.
@@ -44,7 +53,7 @@ Uncheck **Automatically import this directory** to configure a local download fo
 
 ## Media and metadata
 
-Choose Hydrus, ComfyUI, both, or configured local folders. Sort by date, name, or random order. Prefix/lineage search uses saved prefix IDs, paired hashes and generated source links, including Hydrus originals whose tags do not match prefix prompt words. Search results are capped at 200 files per request.
+Choose Hydrus, ComfyUI, both, or configured local folders. Sort by date, name, or random order. Prefix/lineage search uses saved prefix IDs, paired hashes and generated source links, including Hydrus originals whose tags do not match prefix prompt words. The UI loads 48 files per cursor page and continues beyond 200 files. Hydrus metadata requests are bounded at 200; prefix results fetch bounded metadata batches once to establish global date order. Gallery supplies a complete catalogue once per search. Thumbnails and media load on demand.
 
 Select media to export it to Hydrus, sync its prompts/tags to an existing Hydrus file, or copy Hydrus media to ComfyUI input. Exports preserve available metadata as a Hydrus note. Image copies retain their Hydrus origin; video copies use the Gallery provenance endpoint. Media copied to input is not automatically inserted into a running workflow.
 

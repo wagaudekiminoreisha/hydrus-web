@@ -6,8 +6,8 @@
   "main": "electron/main.cjs",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
-    "start:ssl": "ng serve --ssl --host 0.0.0.0",
+    "start": "node scripts/serve-dev.mjs",
+    "start:ssl": "node scripts/serve-dev.mjs --ssl --host 0.0.0.0",
     "mobile": "node scripts/serve-mobile.mjs --build",
     "mobile:serve": "node scripts/serve-mobile.mjs",
     "ios:sync": "npm run build && cap sync ios",

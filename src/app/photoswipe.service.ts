@@ -110,7 +110,14 @@ export class PhotoswipeService {
       if(media) { media.loop = !playNext && this.settingsService.appSettings.mediaLoop; return; }
       if(content.isImageContent() && content.state === 'loaded') slideshowTimer = setTimeout(advance, Math.max(1, Number(this.settingsService.appSettings.slideshowIntervalSeconds) || 5) * 1000);
     };
-    const visibility = () => { if(document.hidden) {clearSlideshow(); pswp.currSlide?.content.element?.querySelector<HTMLMediaElement>('.pswp-media')?.pause();} else scheduleSlideshow(); };
+    const visibility = () => {
+      if(document.hidden) {
+        clearSlideshow();
+        if(this.platform.ANDROID || this.platform.IOS) {
+          pswp.currSlide?.content.element?.querySelector<HTMLMediaElement>('.pswp-media')?.pause();
+        }
+      } else scheduleSlideshow();
+    };
     document.addEventListener('visibilitychange', visibility);
     pswp.on('loadComplete', scheduleSlideshow);
 

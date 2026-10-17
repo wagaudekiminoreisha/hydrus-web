@@ -96,7 +96,13 @@ export class IntegrationStore {
     const next={...this.config};
     for(const key of ['comfyUrl','hydrusUrl']) if(key in input)next[key]=input[key]?validateURL(input[key]):'';
     for(const key of ['hydrusApiKey','tagServiceKey']) if(typeof input[key]==='string' && (key!=='hydrusApiKey'||input[key]))next[key]=input[key].trim();
-    await this.save('config.json',next);this.config=next;this.searches.clear();return this.publicConfig();
+    if(next.comfyUrl!==this.config.comfyUrl)next.comfyInstanceId='';
+    if(input.comfyInstanceId && input.comfyInstanceId!==this.config.comfyInstanceId) {
+      const identity=await this.comfyIdentity(next.comfyUrl);
+      if(identity.instanceId!==input.comfyInstanceId)throw new Error('ComfyUI instance changed during pairing. Check the connection again.');
+      next.comfyInstanceId=identity.instanceId;
+    }
+    await this.save('config.json',next);this.config=next;this.searches.clear();this.assets.clear();return this.publicConfig();
   }
   async hydrus(endpoint,body,params={},options={}) {
     if(!this.config.hydrusApiKey)throw new Error('Configure a Hydrus API access key on the bridge.');
@@ -104,7 +110,41 @@ export class IntegrationStore {
     const response=await this.fetcher(url,{method:body===undefined?'GET':'POST',headers:{'Hydrus-Client-API-Access-Key':this.config.hydrusApiKey,...options.headers,...(body instanceof Uint8Array?{'Content-Type':'application/octet-stream'}:body!==undefined?{'Content-Type':'application/json'}:{})},body:body===undefined?undefined:body instanceof Uint8Array?body:JSON.stringify(body),signal:AbortSignal.timeout(60000)});
     if(!response.ok)throw new Error(`Hydrus ${endpoint}: HTTP ${response.status}`);return response;
   }
-  async comfy(endpoint,body,options={}) {if(!this.config.comfyUrl)throw new Error('Configure the ComfyUI address.');const response=await this.fetcher(this.config.comfyUrl+endpoint,{method:body===undefined?'GET':'POST',headers:{...(body===undefined?{}:{'Content-Type':'application/json'}),...options.headers},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(30000)});if(!response.ok)throw new Error(`ComfyUI ${endpoint}: HTTP ${response.status}`);return response;}
+  async comfyIdentity(url=this.config.comfyUrl) {
+    if(!url)throw new Error('Configure the ComfyUI address.');
+    const response=await this.fetcher(url+'/Gallery/instance',{redirect:'error',signal:AbortSignal.timeout(10000)});
+    if(!response.ok)throw new Error('Gallery identity unavailable. Update Gallery on the ComfyUI server (HTTP '+response.status+').');
+    const identity=await response.json();
+    if(typeof identity.instanceId!=='string'||!identity.instanceId.match(/^[a-f0-9-]{36}$/i))throw new Error('Invalid Gallery instance identity.');
+    return identity;
+  }
+  async verifyComfy() {
+    if(!this.config.comfyInstanceId)throw new Error('Check the ComfyUI connection and pair its instance before transferring files.');
+    const identity=await this.comfyIdentity();
+    if(identity.instanceId!==this.config.comfyInstanceId)throw new Error('ComfyUI instance changed. Transfers are blocked until you explicitly pair the intended instance.');
+    if(identity.mediaRootMatches===false)throw new Error('Gallery media root differs from its catalogue. Start the Gallery monitor for the configured folder before transferring files.');
+    return identity;
+  }
+  async diagnostics() {
+    const checks=[];let identity;
+    try { identity=await this.comfyIdentity();checks.push({name:'Gallery instance',ok:true,message:identity.instanceId}); }
+    catch(error){checks.push({name:'Gallery instance',ok:false,message:error.message});}
+    checks.push({name:'Transfer pairing',ok:!!identity&&identity.instanceId===this.config.comfyInstanceId,message:identity&&identity.instanceId===this.config.comfyInstanceId?'Paired':'Pair this installation before transferring files.'});
+    if(identity?.mediaRootMatches===false)checks.push({name:'Gallery media root',ok:false,message:'Gallery catalogue and static media roots differ. Start the Gallery monitor for the configured folder in ComfyUI.'});
+    try {
+      const settings=await(await this.comfy('/Gallery/settings')).json();
+      const data=await(await this.comfy('/Gallery/images?relative_path='+encodeURIComponent(settings.relativePath||'./'))).json();
+      const files=Object.values(data.folders||{}).flatMap(folder=>Object.values(folder)).filter(file=>['image','media'].includes(file.type));
+      checks.push({name:'Gallery catalogue',ok:true,message:files.length+' files'});
+      if(files.length) {
+        const response=await this.comfy(files[0].url,undefined,{headers:{Range:'bytes=0-0'}});
+        await response.body?.cancel();
+        checks.push({name:'Media access',ok:true,message:files[0].name||files[0].url});
+      } else checks.push({name:'Media access',ok:false,message:'No files available to verify. Check the Gallery folder setting.'});
+    } catch(error){checks.push({name:'Gallery / media access',ok:false,message:error.message});}
+    return {checks,instanceId:identity?.instanceId};
+  }
+  async comfy(endpoint,body,options={}) {if(!this.config.comfyUrl)throw new Error('Configure the ComfyUI address.');const response=await this.fetcher(this.config.comfyUrl+endpoint,{method:body===undefined?'GET':'POST',redirect:'error',headers:{...(body===undefined?{}:{'Content-Type':'application/json'}),...(this.config.comfyInstanceId?{'X-Gallery-Instance':this.config.comfyInstanceId}:{}),...options.headers},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(30000)});if(!response.ok)throw new Error(`ComfyUI ${endpoint}: HTTP ${response.status}`);return response;}
   async addFolder(input) {
     if(typeof input.path!=='string'||!path.isAbsolute(input.path))throw new Error('Choose an absolute folder path on the bridge computer.');
     const folder=await fs.realpath(input.path);if(!(await fs.stat(folder)).isDirectory())throw new Error('The import path is not a directory.');
@@ -126,7 +166,7 @@ export class IntegrationStore {
     tags=cleanTags(tags);if(tags.length) {if(!this.config.tagServiceKey)throw new Error('Choose a Hydrus tag service before importing with tags.');await this.hydrus('/add_tags/add_tags',{hash:result.hash,service_keys_to_tags:{[this.config.tagServiceKey]:tags}});}
     if(Object.keys(metadata).length)await this.hydrus('/add_notes/set_notes',{hash:result.hash,notes:{'ComfyUI Gallery generation metadata':JSON.stringify(metadata)}});
     if(archive)await this.hydrus('/add_files/archive_files',{hashes:[result.hash]});
-    if(prefixId) {const library=await(await this.comfy('/Gallery/prefixes')).json();await this.comfy('/Gallery/prefixes',{action:'associate',prefix_id:prefixId,image_keys:['sha256:'+result.hash],image_refs:{['sha256:'+result.hash]:{hash:result.hash}},revision:library.revision});}
+    if(prefixId) {await this.verifyComfy();const library=await(await this.comfy('/Gallery/prefixes')).json();await this.comfy('/Gallery/prefixes',{action:'associate',prefix_id:prefixId,image_keys:['sha256:'+result.hash],image_refs:{['sha256:'+result.hash]:{hash:result.hash}},revision:library.revision});}
     return result;
   }
   async scan(force=false) {
@@ -193,18 +233,32 @@ export class IntegrationStore {
     const compare=(a,b)=>order==='name'?a.name.localeCompare(b.name)||a.id.localeCompare(b.id):(b.timestamp||0)-(a.timestamp||0)||a.id.localeCompare(b.id);
     if(order==='random')for(let at=entries.length-1;at>0;at--){const other=Math.floor(Math.random()*(at+1));[entries[at],entries[other]]=[entries[other],entries[at]];}
     else entries.sort(compare);
-    let remote=[],remoteKey='file_ids';
+    let remote=[],remoteKey='file_ids',prefixMetadata;
     if(source==='both'||source==='hydrus')try {
-      if(membership){remote=[...membership.hashes];remoteKey='hashes';if(order==='name')remote.sort();}
+      if(membership){
+        remote=[...membership.hashes];remoteKey='hashes';
+        // Associations are in library order, not import-date order. Read bounded
+        // metadata batches once to sort the entire prefix before cursor paging.
+        prefixMetadata=new Map();
+        for(let at=0;at<remote.length;at+=200) {
+          const result=await(await this.hydrus('/get_files/file_metadata',undefined,{hashes:remote.slice(at,at+200),include_notes:true})).json();
+          for(const file of result.metadata||[])if(file.hash)prefixMetadata.set(file.hash,file);
+        }
+        const timestamp=file=>file.time_imported||file.import_time||Math.max(0,...Object.values(file.file_services?.current||{}).map(service=>Number(service.time_imported)||0))||file.time_modified||0;
+        remote=remote.filter(hash=>prefixMetadata.has(hash));
+        if(order==='date')remote.sort((a,b)=>timestamp(prefixMetadata.get(b))-timestamp(prefixMetadata.get(a))||a.localeCompare(b));
+        else if(order==='name')remote.sort();
+        else for(let at=remote.length-1;at>0;at--){const other=Math.floor(Math.random()*(at+1));[remote[at],remote[other]]=[remote[other],remote[at]];}
+      }
       else {
         const found=await(await this.hydrus('/get_files/search_files',undefined,{tags,return_file_ids:true,file_sort_type:order==='name'?20:order==='random'?4:2,file_sort_asc:order==='name'})).json();
         remote=[...new Set(found.file_ids||[])];
       }
-    }catch(error){warnings.push(error.message);}
+    }catch(error){remote=[];warnings.push(error.message);}
     // Sessions expire after 30 minutes of inactivity; keep at most eight searches.
     for(const [key,session] of this.searches)if(session.expires<Date.now())this.searches.delete(key);
     while(this.searches.size>=8)this.searches.delete(this.searches.keys().next().value);
-    const id=randomUUID(),session={id,expires:Date.now()+1800000,limit,order,compare,local:entries,localAt:0,remote,remoteKey,remoteAt:0,buffer:[],page:0,pages:new Map(),prefixes:library.prefixes||[],warnings,comfyOnline};
+    const id=randomUUID(),session={id,expires:Date.now()+1800000,limit,order,compare,local:entries,localAt:0,remote,remoteKey,prefixMetadata,remoteAt:0,buffer:[],page:0,pages:new Map(),prefixes:library.prefixes||[],warnings,comfyOnline};
     this.searches.set(id,session);
     try {return await this.searchPage(id+':0');}
     catch(error) {
@@ -233,7 +287,7 @@ export class IntegrationStore {
     const fillRemote=async()=>{
       while(!buffer.length&&remoteAt<session.remote.length) {
         const keys=session.remote.slice(remoteAt,remoteAt+session.limit);
-        const result=await(await this.hydrus('/get_files/file_metadata',undefined,{[session.remoteKey]:keys,include_notes:true})).json();
+        const result=session.prefixMetadata?{metadata:keys.map(key=>session.prefixMetadata.get(key)).filter(Boolean)}:await(await this.hydrus('/get_files/file_metadata',undefined,{[session.remoteKey]:keys,include_notes:true})).json();
         const records=result.metadata||[],byKey=new Map(records.map(file=>[session.remoteKey==='hashes'?file.hash:file.file_id,file]));
         for(const key of keys) {
           const file=byKey.get(key);if(!file?.hash||file.is_local===false||file.is_deleted||file.is_in_trash||file.is_trashed)continue;
@@ -284,9 +338,10 @@ export class IntegrationStore {
     throw new Error('Unknown media source.');
   }
   async localMedia(options={}) {return this.search({...options,source:'folder'});}
-  async exportMedia(id,inherit=false,tags=[]) {const asset=this.assets.get(id);if(!asset||asset.source==='hydrus')throw new Error('Choose a ComfyUI or local-folder file.');const response=await this.media(id);const bytes=Buffer.from(await response.arrayBuffer());const metadata=asset.source==='folder'?pngMetadata(bytes):asset.metadata;return this.importBytes(bytes,metadata,[...cleanTags(tags),...(inherit?inheritedTags(metadata):[])]);}
+  async exportMedia(id,inherit=false,tags=[]) {const asset=this.assets.get(id);if(!asset||asset.source==='hydrus')throw new Error('Choose a ComfyUI or local-folder file.');if(asset.source==='comfy')await this.verifyComfy();const response=await this.media(id);const bytes=Buffer.from(await response.arrayBuffer());const metadata=asset.source==='folder'?pngMetadata(bytes):asset.metadata;return this.importBytes(bytes,metadata,[...cleanTags(tags),...(inherit?inheritedTags(metadata):[])]);}
   async syncMetadata(id,inherit=false,tags=[]) {
     const asset=this.assets.get(id);if(!asset)throw new Error('Search again to load this media.');
+    if(asset.source==='comfy'||[...this.assets.values()].some(item=>item.source==='comfy'))await this.verifyComfy();
     let hash=asset.hash,metadata=asset.metadata||{};
     if(asset.source==='comfy'&&!hash)hash=(await(await this.comfy('/Gallery/source/hashes',{urls:[asset.url]})).json()).hashes[asset.url];
     if(asset.source==='folder'){const bytes=Buffer.from(await(await this.media(id)).arrayBuffer());hash=createHash('sha256').update(bytes).digest('hex');metadata=pngMetadata(bytes);}
@@ -302,7 +357,7 @@ export class IntegrationStore {
     if(values.length){if(!this.config.tagServiceKey)throw new Error('Choose a tag service.');await this.hydrus('/add_tags/add_tags',{hash,service_keys_to_tags:{[this.config.tagServiceKey]:values}});}
     return {hash,metadata,tags:values,prompts:promptsAndLinks(metadata)};
   }
-  async importToComfy(id) {const asset=this.assets.get(id);if(asset?.source!=='hydrus')throw new Error('Choose a Hydrus file.');const response=await this.media(id),form=new FormData();const type=response.headers.get('content-type')||asset.mime;form.append('image',new Blob([await response.arrayBuffer()],{type}),asset.hash+'.'+(type?.split('/')[1]||'png'));form.append('type','input');form.append('subfolder','hydrus');const result=await this.fetcher(this.config.comfyUrl+'/upload/image',{method:'POST',body:form,signal:AbortSignal.timeout(60000)});if(!result.ok)throw new Error('ComfyUI upload failed: HTTP '+result.status);const saved=await result.json();return (await this.comfy(type.startsWith('image/')?'/Gallery/source/input':'/Gallery/source/provenance',{name:(saved.subfolder?saved.subfolder+'/':'')+saved.name,metadata:{...asset.metadata,gallery_origin:'hydrus',hydrus:asset.remote}})).json();}
+  async importToComfy(id) {const asset=this.assets.get(id);if(asset?.source!=='hydrus')throw new Error('Choose a Hydrus file.');await this.verifyComfy();const response=await this.media(id),form=new FormData();const type=response.headers.get('content-type')||asset.mime;form.append('image',new Blob([await response.arrayBuffer()],{type}),asset.hash+'.'+(type?.split('/')[1]||'png'));form.append('type','input');form.append('subfolder','hydrus');const result=await this.fetcher(this.config.comfyUrl+'/upload/image',{method:'POST',redirect:'error',headers:{'X-Gallery-Instance':this.config.comfyInstanceId},body:form,signal:AbortSignal.timeout(60000)});if(!result.ok)throw new Error('ComfyUI upload failed: HTTP '+result.status);const saved=await result.json();return (await this.comfy(type.startsWith('image/')?'/Gallery/source/input':'/Gallery/source/provenance',{name:(saved.subfolder?saved.subfolder+'/':'')+saved.name,metadata:{...asset.metadata,gallery_origin:'hydrus',hydrus:asset.remote}})).json();}
   async manageTags({hashes=[],tags=[],operation='add',newTag='',tag=''}) {
     if(!['relationships','services','add','remove','replace'].includes(operation))throw new Error('Unknown tag operation.');
     if(operation==='relationships')return (await this.hydrus('/add_tags/get_siblings_and_parents',undefined,{tags:[tag]})).json();

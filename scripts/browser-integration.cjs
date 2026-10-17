@@ -18,8 +18,8 @@ try {
  await page.getByRole('button',{name:'View first.png',exact:true}).waitFor();
  assert.equal(actions.find(action=>action.endpoint==='/search').body.source,'comfy');
  assert.equal(await page.getByRole('button',{name:'View second.webm',exact:true}).count(),0);
- assert.equal(await page.getByLabel('Source',{exact:true}).count(),0);
- assert.equal(await page.getByLabel('Prefix / lineage',{exact:true}).count(),0);
+ assert.equal(await page.getByLabel('Source',{exact:true}).count(),1);
+ assert.equal(await page.getByLabel('Prefix / lineage',{exact:true}).count(),1);
  await page.getByRole('button',{name:'Toggle sidenav',exact:true}).click();
  await page.getByRole('link',{name:'ComfyUI',exact:true}).waitFor({state:'visible'});
  assert.deepEqual(errors,[]);
