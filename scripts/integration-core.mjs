@@ -87,7 +87,7 @@ export function prefixMembers(files,library,prefixId) {
   return {urls,hashes,depths};
 }
 export class IntegrationStore {
-  constructor(directory,{fetcher=fetch}={}) {this.directory=directory;this.fetcher=fetcher;this.config={comfyUrl:'',hydrusUrl:'http://127.0.0.1:45869',hydrusApiKey:'',tagServiceKey:'',folders:[]};this.ledger={};this.stability=new Map();this.assets=new Map();this.scanning=false;this.saveQueue=Promise.resolve();}
+  constructor(directory,{fetcher=fetch}={}) {this.directory=directory;this.fetcher=fetcher;this.config={comfyUrl:'',hydrusUrl:'http://127.0.0.1:45869',hydrusApiKey:'',tagServiceKey:'',folders:[]};this.ledger={};this.stability=new Map();this.assets=new Map();this.searches=new Map();this.scanning=false;this.saveQueue=Promise.resolve();}
   async load() {await fs.mkdir(this.directory,{recursive:true});for(const [file,key] of [['config.json','config'],['imports.json','ledger']]) {try {this[key]={...this[key],...JSON.parse(await fs.readFile(path.join(this.directory,file),'utf8'))};} catch(error) {if(error.code!=='ENOENT')throw error;}}}
   async save(file,value) {const text=JSON.stringify(value,null,2);const task=this.saveQueue.catch(()=>{}).then(async()=>{const target=path.join(this.directory,file);await fs.writeFile(target+'.tmp',text,{mode:0o600});await fs.rename(target+'.tmp',target);});this.saveQueue=task;await task;}
   publicConfig() {const {hydrusApiKey,...config}=this.config;return {...config,hasHydrusKey:!!hydrusApiKey};}
@@ -96,7 +96,7 @@ export class IntegrationStore {
     const next={...this.config};
     for(const key of ['comfyUrl','hydrusUrl']) if(key in input)next[key]=input[key]?validateURL(input[key]):'';
     for(const key of ['hydrusApiKey','tagServiceKey']) if(typeof input[key]==='string' && (key!=='hydrusApiKey'||input[key]))next[key]=input[key].trim();
-    await this.save('config.json',next);this.config=next;return this.publicConfig();
+    await this.save('config.json',next);this.config=next;this.searches.clear();return this.publicConfig();
   }
   async hydrus(endpoint,body,params={},options={}) {
     if(!this.config.hydrusApiKey)throw new Error('Configure a Hydrus API access key on the bridge.');
@@ -147,28 +147,132 @@ export class IntegrationStore {
     }await this.save('config.json',this.config);}finally{this.scanning=false;}
   }
   registerAsset(entry,internal) {const id=entry.id||randomUUID();this.assets.set(id,{...entry,...internal});return {...entry,id,prompts:promptsAndLinks(entry.metadata)};}
-  async search({source='both',tags=[],prefixId='',limit=100}={}) {
-    limit=Math.max(1,Math.min(200,Number(limit)||100));const entries=[],warnings=[];let comfyOnline=false;let library={prefixes:[],associations:{}},local=[];
-    if(this.config.comfyUrl) {try {const settings=await(await this.comfy('/Gallery/settings')).json();this.comfyRoot=settings.relativePath||'./';const [data,prefixes]=await Promise.all([this.comfy('/Gallery/images?relative_path='+encodeURIComponent(this.comfyRoot)).then(r=>r.json()),this.comfy('/Gallery/prefixes').then(r=>r.json())]);comfyOnline=true;library=prefixes.library||prefixes;local=Object.values(data.folders||{}).flatMap(folder=>Object.values(folder)).filter(file=>['image','media'].includes(file.type));if(prefixId&&local.length){const hashes={};for(let at=0;at<local.length;at+=2000)Object.assign(hashes,(await(await this.comfy('/Gallery/source/hashes',{urls:local.slice(at,at+2000).map(file=>file.url)})).json()).hashes);local=local.map(file=>({...file,hash:hashes[file.url]}));}}
-      catch(error){warnings.push(error.message);}
-    }
+  // A cursor refers to a stable search, not a new scan of a changing directory.
+  async search({source='both',tags=[],prefixId='',limit=48,order='date',cursor}={}) {
+    if(cursor)return this.searchPage(cursor);
+    if(!['both','hydrus','comfy','folder'].includes(source))throw new Error('Unknown media source.');
+    limit=Math.max(1,Math.min(200,Math.floor(Number(limit)||48)));
+    if(!['date','name','random'].includes(order))order='date';
+    tags=cleanTags(tags);
+    const warnings=[];let comfyOnline=false,library={prefixes:[],associations:{}},local=[];
+    if(this.config.comfyUrl&&(source==='both'||source==='comfy'||prefixId)) {
+      try {
+        const settings=await(await this.comfy('/Gallery/settings')).json();
+        const root=settings.relativePath||'./';this.comfyRoot=root;
+        // Gallery supplies a full catalogue. Fetch it once per search, never per page.
+        const data=await(await this.comfy('/Gallery/images?relative_path='+encodeURIComponent(root))).json();
+        local=Object.values(data.folders||{}).flatMap(folder=>Object.values(folder)).filter(file=>['image','media'].includes(file.type));
+        comfyOnline=true;
+        try {const prefixes=await(await this.comfy('/Gallery/prefixes')).json();library=prefixes.library||prefixes;}
+        catch(error){warnings.push(error.message);if(prefixId)throw error;}
+        if(prefixId&&local.length) {
+          const hashes={};
+          for(let at=0;at<local.length;at+=2000)Object.assign(hashes,(await(await this.comfy('/Gallery/source/hashes',{urls:local.slice(at,at+2000).map(file=>file.url)})).json()).hashes);
+          local=local.map(file=>({...file,hash:hashes[file.url]}));
+        }
+        local=local.map(file=>({...file,root}));
+      }catch(error){if(!warnings.includes(error.message))warnings.push(error.message);if(prefixId)local=[];}
+    }else if(source==='comfy')warnings.push('Configure the ComfyUI address to browse its gallery.');
     const membership=prefixId?prefixMembers(local,library,prefixId):undefined;
-    if(source!=='hydrus')for(const file of local) {if(membership&&!membership.urls.has(file.url))continue;if(tags.length&&!tags.every(tag=>JSON.stringify(file.metadata||{}).toLowerCase().includes(tag.toLowerCase())))continue;entries.push({id:'comfy:'+file.url,source:'comfy',name:file.name,url:file.url,hash:file.hash,mime:file.mime||'',timestamp:file.timestamp||0,metadata:file.metadata||{},depth:membership?.depths.get(file.url)});}
-    if(source!=='comfy')try {
-      let records=[];
-      if(membership) {const hashes=[...membership.hashes];for(let at=0;at<hashes.length;at+=200)records.push(...(await(await this.hydrus('/get_files/file_metadata',undefined,{hashes:hashes.slice(at,at+200),include_notes:true})).json()).metadata);}
-      else {const found=await(await this.hydrus('/get_files/search_files',undefined,{tags:[...cleanTags(tags),'system:limit='+limit],return_file_ids:true})).json();if(found.file_ids?.length)records=(await(await this.hydrus('/get_files/file_metadata',undefined,{file_ids:found.file_ids.slice(0,limit),include_notes:true})).json()).metadata;}
-      for(const file of records.filter(file=>file.hash && !file.is_deleted && !file.is_in_trash && !file.is_trashed)) {const metadata=object(file.notes?.['ComfyUI Gallery generation metadata']);entries.push({id:'hydrus:'+file.hash,source:'hydrus',name:file.hash.slice(0,12),hash:file.hash,mime:file.mime,width:file.width,height:file.height,timestamp:file.time_imported||file.import_time||Math.max(0,...Object.values(file.file_services?.current||{}).map(service=>Number(service.time_imported)||0))||file.time_modified||0,metadata,tags:Object.values(file.tags||{}).flatMap(service=>service.display_tags?.['0']||service.storage_tags?.['0']||[]),remote:file});}
+    let entries=[];
+    if(source==='both'||source==='comfy')for(const file of local) {
+      if(membership&&!membership.urls.has(file.url))continue;
+      if(tags.length&&!tags.every(tag=>JSON.stringify(file.metadata||{}).toLowerCase().includes(tag.toLowerCase())))continue;
+      entries.push({id:'comfy:'+file.url,source:'comfy',name:file.name,url:file.url,root:file.root,hash:file.hash,mime:file.mime||'',timestamp:file.timestamp||0,metadata:file.metadata||{},depth:membership?.depths.get(file.url)});
+    }
+    if(source==='folder') {
+      for(const rule of this.config.folders) {
+        try {for(const file of await this.filesIn(rule.path,rule.recursive)) {
+          const stat=await fs.stat(file);
+          // Read PNG metadata only when this file reaches a requested page.
+          entries.push({id:'folder:'+createHash('sha256').update(file).digest('hex'),source:'folder',name:path.basename(file),path:file,size:stat.size,timestamp:stat.mtimeMs/1000,mime:mimeTypes[path.extname(file).toLowerCase()]||'',metadata:{}});
+        }}catch(error){warnings.push(error.message);}
+      }
+    }
+    entries=[...new Map(entries.map(entry=>[entry.id,entry])).values()];
+    const compare=(a,b)=>order==='name'?a.name.localeCompare(b.name)||a.id.localeCompare(b.id):(b.timestamp||0)-(a.timestamp||0)||a.id.localeCompare(b.id);
+    if(order==='random')for(let at=entries.length-1;at>0;at--){const other=Math.floor(Math.random()*(at+1));[entries[at],entries[other]]=[entries[other],entries[at]];}
+    else entries.sort(compare);
+    let remote=[],remoteKey='file_ids';
+    if(source==='both'||source==='hydrus')try {
+      if(membership){remote=[...membership.hashes];remoteKey='hashes';if(order==='name')remote.sort();}
+      else {
+        const found=await(await this.hydrus('/get_files/search_files',undefined,{tags,return_file_ids:true,file_sort_type:order==='name'?20:order==='random'?4:2,file_sort_asc:order==='name'})).json();
+        remote=[...new Set(found.file_ids||[])];
+      }
     }catch(error){warnings.push(error.message);}
-    const ordered=entries.sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));
-    let selected=ordered.slice(0,limit);
-    if(source==='both'){const localEntries=ordered.filter(item=>item.source==='comfy'),remoteEntries=ordered.filter(item=>item.source==='hydrus');const remoteCount=Math.min(remoteEntries.length,Math.floor(limit/2));const localCount=Math.min(localEntries.length,limit-remoteCount);selected=[...localEntries.slice(0,localCount),...remoteEntries.slice(0,limit-localCount)];}
-    return {entries:selected.map(entry=>this.registerAsset(entry,{})),prefixes:library.prefixes,warnings,comfyOnline};
+    // Sessions expire after 30 minutes of inactivity; keep at most eight searches.
+    for(const [key,session] of this.searches)if(session.expires<Date.now())this.searches.delete(key);
+    while(this.searches.size>=8)this.searches.delete(this.searches.keys().next().value);
+    const id=randomUUID(),session={id,expires:Date.now()+1800000,limit,order,compare,local:entries,localAt:0,remote,remoteKey,remoteAt:0,buffer:[],page:0,pages:new Map(),prefixes:library.prefixes||[],warnings,comfyOnline};
+    this.searches.set(id,session);
+    try {return await this.searchPage(id+':0');}
+    catch(error) {
+      if(!entries.length||!remote.length)throw error;
+      // Keep ComfyUI browsing available if the first Hydrus metadata batch fails.
+      session.remote=[];session.warnings.push(error.message);
+      return this.searchPage(id+':0');
+    }
+  }
+  async searchPage(cursor) {
+    if(typeof cursor!=='string')throw new Error('Invalid search cursor. Refresh the search.');
+    const [id,index]=cursor.split(':');const session=this.searches.get(id);
+    if(!session||session.expires<Date.now()){this.searches.delete(id);throw new Error('Search expired. Refresh the search to continue.');}
+    const page=Number(index);
+    if(!Number.isSafeInteger(page)||page<0||cursor!==id+':'+page||page>session.page)throw new Error('Invalid search cursor. Refresh the search.');
+    session.expires=Date.now()+1800000;
+    // Cache each page promise: retries and concurrent requests cannot consume two pages.
+    if(session.pages.has(page))return session.pages.get(page);
+    const pending=this.readSearchPage(session).catch(error=>{session.pages.delete(page);throw error;});
+    session.pages.set(page,pending);
+    return pending;
+  }
+  async readSearchPage(session) {
+    // Advance a draft only after every request succeeds, so a failed page is retryable.
+    let {localAt,remoteAt}=session;const buffer=[...session.buffer],selected=[],warnings=[...session.warnings];
+    const fillRemote=async()=>{
+      while(!buffer.length&&remoteAt<session.remote.length) {
+        const keys=session.remote.slice(remoteAt,remoteAt+session.limit);
+        const result=await(await this.hydrus('/get_files/file_metadata',undefined,{[session.remoteKey]:keys,include_notes:true})).json();
+        const records=result.metadata||[],byKey=new Map(records.map(file=>[session.remoteKey==='hashes'?file.hash:file.file_id,file]));
+        for(const key of keys) {
+          const file=byKey.get(key);if(!file?.hash||file.is_local===false||file.is_deleted||file.is_in_trash||file.is_trashed)continue;
+          const metadata=object(file.notes?.['ComfyUI Gallery generation metadata']);
+          buffer.push({id:'hydrus:'+file.hash,source:'hydrus',name:file.hash.slice(0,12),hash:file.hash,mime:file.mime,width:file.width,height:file.height,timestamp:file.time_imported||file.import_time||Math.max(0,...Object.values(file.file_services?.current||{}).map(service=>Number(service.time_imported)||0))||file.time_modified||0,metadata,tags:Object.values(file.tags||{}).flatMap(service=>service.display_tags?.['0']||service.storage_tags?.['0']||[]),remote:file});
+        }
+        remoteAt+=keys.length;
+      }
+    };
+    while(selected.length<session.limit) {
+      await fillRemote();
+      const local=session.local[localAt],remote=buffer[0];
+      if(!local&&!remote)break;
+      const takeLocal=local&&(!remote||(session.order==='random'?selected.length%2===0:session.compare(local,remote)<=0));
+      if(takeLocal) {
+        localAt++;
+        if(local.source==='folder') {
+          try {
+            if(await fs.realpath(local.path)!==local.path)throw new Error('Local media path changed.');
+            const stat=await fs.stat(local.path);
+            const metadata=local.mime==='image/png'&&stat.size<16*1024*1024?pngMetadata(await fs.readFile(local.path)):{};
+            selected.push({...local,metadata});
+          }
+          catch(error){warnings.push(local.name+': '+error.message);}
+        }else selected.push(local);
+      }else selected.push(buffer.shift());
+    }
+    const entries=selected.map(entry=>{
+      const {path:filePath,size,...publicEntry}=entry;
+      return this.registerAsset(publicEntry,filePath?{path:filePath}:{});
+    });
+    session.localAt=localAt;session.remoteAt=remoteAt;session.buffer=buffer;session.page++;
+    const hasMore=localAt<session.local.length||buffer.length>0||remoteAt<session.remote.length;
+    return {entries,nextCursor:hasMore?session.id+':'+session.page:null,hasMore,prefixes:session.prefixes,warnings:[...new Set(warnings)],comfyOnline:session.comfyOnline};
   }
   async media(id,thumbnail=false,range) {
     const asset=this.assets.get(id);if(!asset)throw new Error('Search again to load this media.');
     if(asset.source==='hydrus')return this.hydrus(thumbnail?'/get_files/thumbnail':'/get_files/file',undefined,{hash:asset.hash},{headers:range?{Range:range}:{}});
-    if(asset.source==='comfy')return this.comfy(thumbnail?'/Gallery/thumbnail?url='+encodeURIComponent(asset.url)+'&root='+encodeURIComponent(this.comfyRoot||'./'):asset.url,undefined,{headers:range?{Range:range}:{}});
+    if(asset.source==='comfy')return this.comfy(thumbnail?'/Gallery/thumbnail?url='+encodeURIComponent(asset.url)+'&root='+encodeURIComponent(asset.root||this.comfyRoot||'./'):asset.url,undefined,{headers:range?{Range:range}:{}});
     if(asset.source==='folder') {
       const current=await fs.realpath(asset.path);if(current!==asset.path)throw new Error('Local media path changed.');
       const stat=await fs.stat(current),headers={'content-type':mimeTypes[path.extname(current).toLowerCase()]||'application/octet-stream','accept-ranges':'bytes'};
@@ -179,7 +283,7 @@ export class IntegrationStore {
     }
     throw new Error('Unknown media source.');
   }
-  async localMedia() {const entries=[];for(const rule of this.config.folders)for(const file of (await this.filesIn(rule.path,rule.recursive)).slice(0,200)) {const stat=await fs.stat(file);const id='folder:'+createHash('sha256').update(file).digest('hex');entries.push(this.registerAsset({id,source:'folder',name:path.basename(file),timestamp:stat.mtimeMs/1000,mime:mimeTypes[path.extname(file).toLowerCase()]||'',metadata:path.extname(file).toLowerCase()==='.png'&&stat.size<16*1024*1024?pngMetadata(await fs.readFile(file)):{}},{path:file}));}return {entries};}
+  async localMedia(options={}) {return this.search({...options,source:'folder'});}
   async exportMedia(id,inherit=false,tags=[]) {const asset=this.assets.get(id);if(!asset||asset.source==='hydrus')throw new Error('Choose a ComfyUI or local-folder file.');const response=await this.media(id);const bytes=Buffer.from(await response.arrayBuffer());const metadata=asset.source==='folder'?pngMetadata(bytes):asset.metadata;return this.importBytes(bytes,metadata,[...cleanTags(tags),...(inherit?inheritedTags(metadata):[])]);}
   async syncMetadata(id,inherit=false,tags=[]) {
     const asset=this.assets.get(id);if(!asset)throw new Error('Search again to load this media.');

@@ -36,7 +36,7 @@ export async function createIntegrationServer({token,origins=[],directory,fetche
       if(url.pathname.startsWith('/folders/')&&request.method==='DELETE'){await store.removeFolder(decodeURIComponent(url.pathname.slice(9)));return json(store.config.folders);}
       if(url.pathname==='/scan'&&request.method==='POST'){await store.scan(true);return json({folders:store.config.folders,scanning:store.scanning});}
       if(url.pathname==='/search'&&request.method==='POST')return json(await store.search(body));
-      if(url.pathname==='/local')return json(await store.localMedia());
+      if(url.pathname==='/local')return json(await store.localMedia(request.method==='POST'?body:Object.fromEntries(url.searchParams)));
       if(url.pathname==='/export'&&request.method==='POST')return json(await store.exportMedia(body.id,body.inherit,body.tags));
       if(url.pathname==='/sync'&&request.method==='POST')return json(await store.syncMetadata(body.id,body.inherit,body.tags));
       if(url.pathname==='/import'&&request.method==='POST')return json(await store.importToComfy(body.id));

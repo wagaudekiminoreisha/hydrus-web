@@ -19,12 +19,12 @@
     </div></details>
     <h2>{{comfyBrowser ? 'ComfyUI media' : 'Media workspace'}}</h2>
     <div class="controls">
-      <label *ngIf="!comfyBrowser">Source<select [(ngModel)]="source"><option value="both">Hydrus + ComfyUI</option><option value="hydrus">Hydrus</option><option value="comfy">ComfyUI</option><option value="folder">Configured local folders</option></select></label>
+      <label *ngIf="!comfyBrowser">Source<select [(ngModel)]="source" (change)="search()" [disabled]="busy"><option value="both">Hydrus + ComfyUI</option><option value="hydrus">Hydrus</option><option value="comfy">ComfyUI</option><option value="folder">Configured local folders</option></select></label>
       <label>Tags<input [(ngModel)]="query" placeholder="Comma-separated search tags" (keydown.enter)="search()"></label>
-      <label *ngIf="!comfyBrowser">Prefix / lineage<select [(ngModel)]="prefixId"><option value="">All media</option><option *ngFor="let prefix of prefixes" [value]="prefix.id">{{prefix.name}}</option></select></label>
-      <label>Order<select [(ngModel)]="order" (change)="sort()"><option value="date">Newest</option><option value="name">Name</option><option value="random">Random</option></select></label>
+      <label *ngIf="!comfyBrowser">Prefix / lineage<select [(ngModel)]="prefixId" (change)="search()" [disabled]="busy"><option value="">All media</option><option *ngFor="let prefix of prefixes" [value]="prefix.id">{{prefix.name}}</option></select></label>
+      <label>Order<select [(ngModel)]="order" (change)="sort()" [disabled]="busy"><option value="date">Newest</option><option value="name">Name</option><option value="random">Random</option></select></label>
       <button (click)="search()" [disabled]="busy">Search / refresh metadata</button>
-      <button *ngIf="order==='random'" (click)="sort()">Reshuffle</button>
+      <button *ngIf="order==='random'" (click)="sort()" [disabled]="busy">Reshuffle</button>
     </div>
     <div class="controls">
       <label><input type="checkbox" [(ngModel)]="inherit"> Inherit prompt tags on export</label>
@@ -35,11 +35,17 @@
       <button (click)="selected.clear()" [disabled]="!selected.size">Clear selection ({{selected.size}})</button>
     </div>
     <p *ngIf="!comfyBrowser">Prefix search follows saved associations and source hashes, including paired Hydrus images. It does not require the prefix’s prompt words to match Hydrus tags.</p>
-    <div class="media-grid"><article *ngFor="let asset of assets" [class.selected]="selected.has(asset.id)">
+    <div class="media-grid"><article *ngFor="let asset of assets; trackBy: trackAsset" [class.selected]="selected.has(asset.id)" integrationVisible (visible)="loadThumbnail(asset)">
       <label class="pick"><input type="checkbox" [checked]="selected.has(asset.id)" (change)="toggle(asset)" [attr.aria-label]="'Select '+asset.name"> {{asset.source}}</label>
-      <button class="preview" (click)="open(asset)" [attr.aria-label]="'View '+asset.name"><img *ngIf="asset.thumbnail" [src]="asset.thumbnail" alt=""><span *ngIf="!asset.thumbnail">{{isVideo(asset) ? '▶' : '◇'}}</span><span>{{asset.name}}</span></button>
+      <button class="preview" (click)="open(asset)" [attr.aria-label]="'View '+asset.name"><img *ngIf="asset.thumbnail" [src]="asset.thumbnail" loading="lazy" decoding="async" alt=""><span *ngIf="!asset.thumbnail">{{isVideo(asset) ? '▶' : '◇'}}</span><span>{{asset.name}}</span></button>
       <small *ngIf="asset.depth!==undefined">{{asset.depth===0 ? 'Paired source' : 'Generation '+asset.depth}}</small>
     </article></div>
+    <div class="load-more" integrationVisible [integrationVisibleOnce]="false" [integrationVisibleEnabled]="hasMore && !busy && !loadingMore && !viewing && !pageError" (visible)="loadMore()">
+      <p *ngIf="loadingMore" role="status">Loading more media…</p>
+      <p *ngIf="pageError" role="alert">{{pageError}}</p>
+      <button *ngIf="hasMore" (click)="loadMore()" [disabled]="busy || loadingMore">{{pageError ? 'Retry loading more' : 'Load more'}}</button>
+      <p *ngIf="searched && !hasMore && !loadingMore">{{assets.length ? 'All matching media loaded.' : 'No matching media found.'}}</p>
+    </div>
     <details *ngIf="!comfyBrowser"><summary>Manage selected Hydrus tags, parents &amp; aliases</summary>
       <div class="controls"><label>Action<select [(ngModel)]="tagOperation"><option value="add">Add tags</option><option value="remove">Remove tags</option><option value="replace">Replace tags</option></select></label>
       <label>Tags to add / remove / replace<input [(ngModel)]="extraTags" placeholder="tag, namespace:tag"></label><label *ngIf="tagOperation==='replace'">Replacement tag<input [(ngModel)]="replacement"></label><button (click)="syncTags()" [disabled]="busy||!selected.size">Apply tags to selected Hydrus files</button></div>
@@ -59,6 +65,8 @@
   </ng-container>
   <div *ngIf="viewing" class="integration-viewer" role="dialog" aria-modal="true" aria-label="Integration gallery viewer">
     <div class="viewer-toolbar"><button (click)="closeViewer()">Close</button><button (click)="next(-1)">Previous</button><button (click)="startPlayback()">{{playing?'Pause slideshow':'Play next / slideshow'}}</button><button (click)="next()">Next</button></div>
+    <p *ngIf="loadingMore" role="status">Loading more media…</p>
+    <p *ngIf="pageError" role="alert">{{pageError}} Use Next to retry.</p>
     <img *ngIf="viewURL && isImage(viewing)" [src]="viewURL" [alt]="viewing.name" (load)="loaded()">
     <video #media *ngIf="viewURL && isVideo(viewing)" [src]="viewURL" controls playsinline [autoplay]="playing || settings.appSettings.mediaAutoplay" [muted]="settings.appSettings.mediaDefaultMuted" [loop]="!playing&&settings.appSettings.mediaLoop" (ended)="ended()"></video>
     <audio #media *ngIf="viewURL && !isImage(viewing)&&!isVideo(viewing)" [src]="viewURL" controls [autoplay]="playing || settings.appSettings.mediaAutoplay" [loop]="!playing&&settings.appSettings.mediaLoop" (ended)="ended()"></audio>

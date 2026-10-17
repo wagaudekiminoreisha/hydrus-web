@@ -3,6 +3,7 @@ import {HttpClient, HttpHeaders} from '@angular/common/http';
 import {firstValueFrom} from 'rxjs';
 
 export interface IntegrationAsset {id:string;source:string;name:string;hash?:string;mime?:string;timestamp?:number;metadata?:any;tags?:string[];depth?:number;thumbnail?:string;prompts?:{positive:string[];negative:string[]};}
+export interface IntegrationPage {entries:IntegrationAsset[];nextCursor?:string|null;hasMore?:boolean;prefixes?:any[];warnings?:string[];}
 @Injectable({providedIn:'root'})
 export class IntegrationService {
   readonly enabled=signal(localStorage.getItem('hydrus-web-integration-enabled')==='true');
