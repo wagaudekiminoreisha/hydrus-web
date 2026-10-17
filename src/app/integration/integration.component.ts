@@ -1,22 +1,24 @@
 import {Component, OnDestroy, ViewChild, ElementRef} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {FormsModule} from '@angular/forms';
+import {ActivatedRoute, RouterLink} from '@angular/router';
 import {IntegrationAsset, IntegrationService} from '../integration.service';
 import {HydrusApiSettingsService} from '../hydrus-api-settings.service';
 import {SettingsService} from '../settings.service';
 
-@Component({selector:'app-integration',standalone:true,imports:[CommonModule,FormsModule],templateUrl:'./integration.component.html',styleUrls:['./integration.component.scss']})
+@Component({selector:'app-integration',standalone:true,imports:[CommonModule,FormsModule,RouterLink],templateUrl:'./integration.component.html',styleUrls:['./integration.component.scss']})
 export class IntegrationComponent implements OnDestroy {
+  readonly comfyBrowser=this.route.snapshot.data['comfyBrowser']===true;
   bridgeUrl=this.integration.url;token=this.integration.token;connected=false;busy=false;status='';
   config:any={comfyUrl:'',hydrusUrl:this.api.hydrusApiUrl()||'http://127.0.0.1:45869',hydrusApiKey:this.api.hydrusApiKey()||'',tagServiceKey:''};
   folders:any[]=[];prefixes:any[]=[];services:any[]=[];assets:IntegrationAsset[]=[];selected=new Set<string>();
-  source='both';query='';prefixId='';order='date';inherit=true;extraTags='';relationships:any;relationshipTag='';tagOperation='add';replacement='';
+  source=this.comfyBrowser?'comfy':'both';query='';prefixId='';order='date';inherit=true;extraTags='';relationships:any;relationshipTag='';tagOperation='add';replacement='';
   folder:any={path:'',enabled:true,recursive:true,inheritPrompts:true,tags:'',tagPrefix:'',prefixId:'',intervalSeconds:60,archive:false};
   viewing?:IntegrationAsset;viewURL='';playing=false;private timer?:ReturnType<typeof setTimeout>;private revision=0;private thumbnails=new Set<string>();
   @ViewChild('media') media?:ElementRef<HTMLMediaElement>;
-  constructor(public integration:IntegrationService,private api:HydrusApiSettingsService,public settings:SettingsService) {void integration.ready.then(()=>{this.bridgeUrl=integration.url;this.token=integration.token;});}
+  constructor(public integration:IntegrationService,private api:HydrusApiSettingsService,public settings:SettingsService,private route:ActivatedRoute) {void integration.ready.then(()=>{this.bridgeUrl=integration.url;this.token=integration.token;if(this.comfyBrowser&&this.token)void this.connect();});}
   private async run(action:()=>Promise<void>) {if(this.busy)return;this.busy=true;this.status='';try{await action();}catch(error:any){this.status=error.error?.error||error.message||String(error);}finally{this.busy=false;}}
-  connect() {return this.run(async()=>{this.integration.url=this.bridgeUrl.replace(/\/$/,'');this.integration.token=this.token;await this.integration.request('/health');this.integration.saveConnection(this.bridgeUrl,this.token);const config=await this.integration.request('/config');this.config={...config,hydrusApiKey:this.config.hydrusApiKey};this.folders=config.folders;this.connected=true;this.status='Bridge connected. Save server addresses and tag service before importing.';await this.loadServices();});}
+  async connect() {await this.run(async()=>{this.integration.url=this.bridgeUrl.replace(/\/$/,'');this.integration.token=this.token;await this.integration.request('/health');const config=await this.integration.request('/config');this.integration.saveConnection(this.bridgeUrl,this.token);this.config={...config,hydrusApiKey:config.hasHydrusKey?'':this.config.hydrusApiKey};this.folders=config.folders;this.connected=true;this.status='Bridge connected. Save server addresses and tag service before importing.';if(!this.comfyBrowser)await this.loadServices();});if(this.comfyBrowser&&this.connected){if(this.config.comfyUrl)await this.search();else this.status='Bridge connected. Set the ComfyUI address in Integration settings to browse media.';}}
   async loadServices() {try{const response=await this.integration.request('/tags',{operation:'services'});this.services=Object.values(response.services||response).flatMap((value:any)=>Array.isArray(value)?value:[value]).filter((service:any)=>[0,5].includes(service.type));}catch{/* A new bridge may not have its Hydrus key yet. */}}
   configure() {return this.run(async()=>{const {folders,...config}=this.config;const saved=await this.integration.request('/config',config);this.config={...saved,hydrusApiKey:''};await this.loadServices();this.status='Integration settings saved.';});}
   search() {return this.run(async()=>{this.closeViewer();this.releaseThumbnails();const result=this.source==='folder'?await this.integration.request('/local'):await this.integration.request('/search',{source:this.source,tags:this.split(this.query),prefixId:this.prefixId});this.assets=result.entries;this.prefixes=result.prefixes||this.prefixes;this.selected.clear();this.status=(result.warnings||[]).join(' · ')||`${this.assets.length} files`;this.sort();const revision=++this.revision;void (async()=>{for(const asset of this.assets){try{if(asset.source==='folder'&&!this.isImage(asset))continue;const url=await this.integration.media(asset,true);if(revision!==this.revision){URL.revokeObjectURL(url);return;}asset.thumbnail=url;this.thumbnails.add(url);}catch{/* The media can still be opened when no thumbnail is available. */}}})();});}

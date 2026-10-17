@@ -2,6 +2,8 @@
 
 Update ComfyUI-Gallery as well as Hydrus Web. Restart ComfyUI so the new metadata/provenance routes are available. The integration workspace appears in navigation after a successful setup; ordinary Hydrus browsing remains available independently.
 
+**ComfyUI** is a separate, always-visible navigation entry for Gallery images and videos. It reconnects to the saved bridge and loads ComfyUI media when opened; Hydrus credentials are not required for browsing. For a new connection, use **Integration settings & import folders** to save the ComfyUI address, then return to **ComfyUI**. Its search, sorting, selection and viewer operate on ComfyUI media only. The existing integration workspace remains available for transfers and import-folder configuration.
+
 ## Desktop setup
 
 The Windows/Electron application starts its private integration bridge automatically while the app runs. Open **Settings → Set up ComfyUI integration & automatic import folders**. The bridge address and token are supplied by the desktop application. Click **Connect**, fill in the ComfyUI and Hydrus addresses, provide the Hydrus API key, and save. Choose a local tag service and save again after the services load.

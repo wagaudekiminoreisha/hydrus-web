@@ -24,7 +24,7 @@ export async function createIntegrationServer({token,origins=[],directory,fetche
     const permittedMedia=url.pathname.startsWith('/media/')&&ticket&&ticket.expires>Date.now()&&ticket.id===mediaID&&ticket.thumbnail===(url.searchParams.get('thumbnail')==='1');
     const supplied=Buffer.from(request.headers.authorization||'');
     if(!permittedMedia&&(supplied.length!==expected.length||!timingSafeEqual(supplied,expected))){response.writeHead(401).end('Bridge token required.');return;}
-    const json=value=>{response.setHeader('Content-Type','application/json');response.end(JSON.stringify(value));};
+    const json=(value,status=200)=>{response.statusCode=status;response.setHeader('Content-Type','application/json');response.end(JSON.stringify(value));};
     try {
       let body={};
       if(request.method==='POST'){const chunks=[];let size=0;for await(const chunk of request){size+=chunk.length;if(size>1024*1024)throw new Error('Request body too large.');chunks.push(chunk);}body=JSON.parse(Buffer.concat(chunks).toString()||'{}');}
@@ -42,8 +42,8 @@ export async function createIntegrationServer({token,origins=[],directory,fetche
       if(url.pathname==='/import'&&request.method==='POST')return json(await store.importToComfy(body.id));
       if(url.pathname==='/tags'&&request.method==='POST')return json(await store.manageTags(body));
       if(url.pathname.startsWith('/media/')){const result=await store.media(mediaID,url.searchParams.get('thumbnail')==='1',request.headers.range);response.statusCode=result.status;for(const header of ['content-length','content-range','accept-ranges'])if(result.headers.get(header))response.setHeader(header,result.headers.get(header));response.setHeader('Content-Type',result.headers.get('content-type')||'application/octet-stream');if(!result.body){response.end();return;}Readable.fromWeb(result.body).on('error',()=>response.destroy()).pipe(response);return;}
-      response.writeHead(404);json({error:'Unknown integration endpoint.'});
-    }catch(error){if(response.headersSent){response.destroy();return;}response.writeHead(400);json({error:error.message});}
+      json({error:'Unknown integration endpoint.'},404);
+    }catch(error){if(response.headersSent){response.destroy();return;}json({error:error.message},400);}
   });
   const timer=setInterval(()=>store.scan().catch(()=>{}),10000);timer.unref();server.on('close',()=>clearInterval(timer));
   return {server,store};

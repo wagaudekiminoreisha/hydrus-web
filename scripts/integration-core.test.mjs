@@ -75,3 +75,27 @@ test('inherited prompt tags drop weights and emphasis without guessing unresolve
   const metadata={prompt:{1:{class_type:'CLIPTextEncode',inputs:{text:'(blue sky:1.3), [smile], (red, green:1.2), {unknown|choice}'}}}};
   assert.deepEqual(inheritedTags(metadata),['comfyui outputs','positive_prompt:blue sky','positive_prompt:smile','positive_prompt:red','positive_prompt:green']);
 });
+
+test('bridge returns JSON errors and stays available during first-time setup',async t=>{
+  const directory=await fs.mkdtemp(path.join(tmpdir(),'hydrus-bridge-errors-'));
+  t.after(()=>fs.rm(directory,{recursive:true,force:true}));
+  const token='test-only-token-with-24-characters';
+  const {server}=await createIntegrationServer({directory,token});
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  t.after(()=>new Promise(resolve=>server.close(resolve)));
+  const base='http://127.0.0.1:'+server.address().port;
+  const headers={Authorization:'Bearer '+token,'Content-Type':'application/json'};
+  const services=await fetch(base+'/tags',{method:'POST',headers,body:JSON.stringify({operation:'services'})});
+  assert.equal(services.status,400);
+  assert.match(services.headers.get('content-type'),/application\/json/);
+  assert.match((await services.json()).error,/Hydrus API access key/);
+  const unknown=await fetch(base+'/missing',{headers});
+  assert.equal(unknown.status,404);
+  assert.equal((await unknown.json()).error,'Unknown integration endpoint.');
+  const malformed=await fetch(base+'/config',{method:'POST',headers,body:'{'});
+  assert.equal(malformed.status,400);
+  assert.equal(typeof (await malformed.json()).error,'string');
+  const health=await fetch(base+'/health',{headers});
+  assert.equal(health.status,200);
+  assert.equal((await health.json()).ok,true);
+});
