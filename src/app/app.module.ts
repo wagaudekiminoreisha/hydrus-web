@@ -16,6 +16,7 @@ import { FormsModule } from '@angular/forms';
 
 import { BrowseComponent } from './browse/browse.component';
 import { SettingsComponent } from './settings/settings.component';
+import { IntegrationComponent } from './integration/integration.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
 import { MatButtonModule } from '@angular/material/button';
@@ -188,6 +189,7 @@ const MAT_MODULES = [
   ],
   bootstrap: [AppComponent],
   imports: [
+    IntegrationComponent,
     BrowserModule,
     AppRoutingModule,
     ServiceWorkerModule.register('ngsw-worker.js', { enabled: environment.production }),

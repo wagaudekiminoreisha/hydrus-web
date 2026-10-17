@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { HydrusApiSettingsService } from '../hydrus-api-settings.service';
+import { ActivatedRoute } from '@angular/router';
 
 @Component({
   selector: 'app-settings',
@@ -9,14 +10,15 @@ import { HydrusApiSettingsService } from '../hydrus-api-settings.service';
 export class SettingsComponent implements OnInit {
 
   constructor(
-    public apiSettings: HydrusApiSettingsService
+    public apiSettings: HydrusApiSettingsService,
+    private route: ActivatedRoute
   ) { }
 
 
   ngOnInit() {
   }
 
-  initialSelect = this.apiSettings.apiSet() ? 1 : 0;
+  initialSelect = this.route.snapshot.data['settingsTab'] ?? (this.apiSettings.apiSet() ? 1 : 0);
 
 
 }

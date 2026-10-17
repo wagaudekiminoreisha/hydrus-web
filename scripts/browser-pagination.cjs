@@ -51,8 +51,7 @@ const poster=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQV
     await page.getByText('All matching media loaded.',{exact:true}).waitFor();
     const completed=requests.length;await page.waitForTimeout(150);assert.equal(requests.length,completed);
     console.log('PASS ComfyUI scroll beyond 200, lazy thumbnails, retained selection and end of results');
-    await page.goto('http://127.0.0.1:8192/integration');await page.getByRole('button',{name:'Connect',exact:true}).click();
-    await page.getByRole('button',{name:'Search / refresh metadata',exact:true}).click();await waitCount(48);
+    await page.goto('http://127.0.0.1:8192/comfyui');await page.getByLabel('Source',{exact:true}).selectOption('both');await waitCount(48);
     failNext=true;await page.locator('.load-more').scrollIntoViewIfNeeded();
     await page.getByRole('button',{name:'Retry loading more',exact:true}).waitFor();assert.equal(await cards.count(),48);
     const failedCursor=requests.at(-1).body.cursor;

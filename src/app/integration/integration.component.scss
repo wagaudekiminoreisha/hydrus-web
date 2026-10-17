@@ -1,4 +1,8 @@
 .integration {max-width:1400px;margin:auto;padding:16px;padding-bottom:calc(24px + env(safe-area-inset-bottom));}
+.browser-heading {display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+.browser-heading h1 {margin-bottom:0;}
+.connection-summary {margin:12px 0;}
+.browser-empty {padding:32px 16px;border:1px dashed #8888;border-radius:12px;text-align:center;}
 .controls {display:flex;flex-wrap:wrap;align-items:end;gap:12px;margin:12px 0;}
 label {display:flex;gap:6px;flex-direction:column;max-width:100%;}
 input,select,button {font:inherit;color:inherit;border:1px solid #8888;border-radius:10px;background:transparent;padding:10px;min-height:44px;box-sizing:border-box;}

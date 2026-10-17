@@ -42,7 +42,13 @@ const assert=require('node:assert/strict');
   await page.addInitScript(({key,url})=>{
    localStorage.setItem('hydrus-web-1_hydrusApiKey',key);localStorage.setItem('hydrus-web-1_hydrusApiUrl',url);
   },{key,url:galleryURL});
-  await page.goto(base+'/integration');
+  await page.goto(base+'/comfyui');
+  await page.getByRole('heading',{name:'Connect your ComfyUI Gallery',exact:true}).waitFor();
+  assert.equal(await page.getByLabel('ComfyUI address',{exact:true}).count(),0);
+  assert.equal(await page.getByLabel('Bridge token',{exact:true}).count(),0);
+  await page.getByRole('link',{name:'Open ComfyUI settings',exact:true}).click();
+  assert(page.url().endsWith('/settings/comfyui'));
+  await page.getByRole('tab',{name:'ComfyUI',exact:true,selected:true}).waitFor();
   await page.getByLabel('ComfyUI address',{exact:true}).waitFor();
   assert.equal(await page.getByLabel('Bridge token',{exact:true}).count(),0);
   await page.getByLabel('ComfyUI address',{exact:true}).fill(galleryURL);
