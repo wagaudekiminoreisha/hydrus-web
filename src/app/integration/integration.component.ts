@@ -12,7 +12,9 @@ export class IntegrationComponent implements OnDestroy {
   readonly comfyBrowser=this.route.snapshot.data['comfyBrowser']===true;
   bridgeUrl=this.integration.url;token=this.integration.token;connected=false;busy=false;status='';
   config:any={comfyUrl:'',hydrusUrl:this.api.hydrusApiUrl()||'http://127.0.0.1:45869',hydrusApiKey:this.api.hydrusApiKey()||'',tagServiceKey:''};
-  diagnostics?:{checks:{name:string;ok:boolean;message:string}[];instanceId?:string};
+  diagnostics?:{checks:{name:string;ok:boolean;message:string}[];instanceId?:string;pairedInstanceId?:string};
+  private handshakeTimer?:ReturnType<typeof setInterval>;
+  private handshaking=false;
   folders:any[]=[];prefixes:any[]=[];services:any[]=[];assets:IntegrationAsset[]=[];selected=new Set<string>();
   source=this.comfyBrowser?'comfy':'both';query='';prefixId='';order='date';inherit=true;extraTags='';relationships:any;relationshipTag='';tagOperation='add';replacement='';
   folder:any={path:'',enabled:true,recursive:true,inheritPrompts:true,tags:'',tagPrefix:'',prefixId:'',intervalSeconds:60,archive:false};
@@ -26,11 +28,20 @@ export class IntegrationComponent implements OnDestroy {
   private thumbnailRequests=new Set<string>();
   private warnings:string[]=[];
   @ViewChild('media') media?:ElementRef<HTMLMediaElement>;
-  constructor(public integration:IntegrationService,private api:HydrusApiSettingsService,public settings:SettingsService,private route:ActivatedRoute) {void integration.ready.then(()=>{if(this.destroyed)return;this.bridgeUrl=integration.url;this.token=integration.token;if(this.comfyBrowser&&this.token)void this.connect();});}
+  constructor(public integration:IntegrationService,private api:HydrusApiSettingsService,public settings:SettingsService,private route:ActivatedRoute) {
+    void integration.ready.then(()=>{if(this.destroyed)return;this.bridgeUrl=integration.url;this.token=integration.token;if(integration.managed()||(this.comfyBrowser&&this.token))void this.connect();});
+    this.handshakeTimer=setInterval(()=>{if(this.connected&&this.config.comfyUrl&&!this.config.comfyInstanceId&&!this.busy&&!this.handshaking)void this.retryHandshake();},15000);
+  }
+  private async retryHandshake() {
+    this.handshaking=true;
+    try{const saved=await this.integration.request('/handshake',{});if(this.destroyed)return;this.config={...saved,hydrusApiKey:''};await this.checkConnection();this.status='Gallery connected automatically using the saved Hydrus connection.';}
+    catch{/* The visible diagnostics explain initial setup; saving Gallery's connection is picked up on the next attempt. */}
+    finally{this.handshaking=false;}
+  }
   private async run(action:()=>Promise<void>) {if(this.busy)return;this.busy=true;this.status='';try{await action();}catch(error:any){this.status=error.error?.error||error.message||String(error);}finally{this.busy=false;}}
-  async connect() {await this.run(async()=>{this.integration.url=this.bridgeUrl.replace(/\/$/,'');this.integration.token=this.token;this.connected=false;await this.integration.request('/health');const config=await this.integration.request('/config');this.integration.saveConnection(this.bridgeUrl,this.token);this.config={...config,hydrusApiKey:config.hasHydrusKey?'':this.config.hydrusApiKey};this.folders=config.folders;this.connected=true;if(config.comfyUrl)await this.checkConnection();this.status='Bridge connected. Save server addresses and tag service before importing.';if(!this.comfyBrowser)await this.loadServices();});if(this.comfyBrowser&&this.connected){if(this.config.comfyUrl)await this.search();else this.status='Bridge connected. Set the ComfyUI address in Integration settings to browse media.';}}
+  async connect() {await this.run(async()=>{this.integration.url=this.bridgeUrl.replace(/\/$/,'');this.integration.token=this.token;this.connected=false;await this.integration.request('/health');let config=await this.integration.request('/config');if(this.integration.managed()&&!config.hasHydrusKey&&this.api.hydrusApiKey())config=await this.integration.request('/config',{hydrusUrl:new URL(this.api.hydrusApiUrl()||'http://127.0.0.1:45869',location.origin).href,hydrusApiKey:this.api.hydrusApiKey()});if(!this.integration.managed())this.integration.saveConnection(this.bridgeUrl,this.token);this.config={...config,hydrusApiKey:config.hasHydrusKey?'':this.config.hydrusApiKey};this.folders=config.folders;this.connected=true;if(config.comfyUrl)await this.checkConnection();this.status=this.integration.managed()?'Local bridge ready. Save the ComfyUI address to connect automatically.':'Bridge connected. Save server addresses and tag service before importing.';if(!this.comfyBrowser)await this.loadServices();});if(this.comfyBrowser&&this.connected){if(this.config.comfyUrl)await this.search();else this.status='Set the ComfyUI address in Integration settings. The local bridge is managed automatically.';}}
   async checkConnection() {
-    try { this.diagnostics=await this.integration.request('/diagnostics'); }
+    try { const diagnostics=await this.integration.request('/diagnostics');if(this.destroyed)return;this.diagnostics=diagnostics;if(diagnostics.pairedInstanceId)this.config.comfyInstanceId=diagnostics.pairedInstanceId; }
     catch(error:any){this.diagnostics={checks:[{name:'Connection diagnostics',ok:false,message:error.error?.error||error.message}]};}
   }
   pairInstance() {return this.run(async()=>{
@@ -40,7 +51,7 @@ export class IntegrationComponent implements OnDestroy {
     this.assets=[];this.selected.clear();this.hasMore=false;this.cursor=null;
   });}
   async loadServices() {try{const response=await this.integration.request('/tags',{operation:'services'});this.services=Object.values(response.services||response).flatMap((value:any)=>Array.isArray(value)?value:[value]).filter((service:any)=>[0,5].includes(service.type));}catch{/* A new bridge may not have its Hydrus key yet. */}}
-  configure() {return this.run(async()=>{const {folders,...config}=this.config;const saved=await this.integration.request('/config',config);this.config={...saved,hydrusApiKey:''};await this.loadServices();await this.checkConnection();this.status='Integration settings saved. Check the results below and pair the intended Gallery instance.';});}
+  configure() {return this.run(async()=>{const {folders,...config}=this.config;const saved=await this.integration.request('/config',config);this.config={...saved,hydrusApiKey:''};await this.loadServices();await this.checkConnection();this.status=this.config.comfyInstanceId?'Gallery connection established.':'Settings saved. Complete the Hydrus connection in Gallery; the handshake retries automatically.';});}
   search() {return this.run(async()=>{
     const revision=++this.searchRevision;
     this.closeViewer();this.releaseThumbnails();this.thumbnailRequests.clear();
@@ -109,5 +120,5 @@ export class IntegrationComponent implements OnDestroy {
   setFolder(rule:any) {return this.run(async()=>{this.folders=await this.integration.request('/folders/update',{id:rule.id,enabled:!rule.enabled});});}
   removeFolder(rule:any) {return this.run(async()=>{this.folders=await this.integration.request('/folders/'+encodeURIComponent(rule.id),undefined,'DELETE');});}
   private releaseThumbnails() {this.thumbnails.forEach(url=>URL.revokeObjectURL(url));this.thumbnails.clear();}
-  ngOnDestroy() {this.destroyed=true;this.searchRevision++;this.closeViewer();this.releaseThumbnails();}
+  ngOnDestroy() {this.destroyed=true;clearInterval(this.handshakeTimer);this.searchRevision++;this.closeViewer();this.releaseThumbnails();}
 }

@@ -13,7 +13,8 @@ const poster=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQV
     localStorage.setItem('hydrus-web-integration-token','fixture-only-token-24characters');
     localStorage.setItem('hydrus-web-1_appSettings',JSON.stringify({version:1,mediaAutoplay:false,mediaLoop:false}));
   });
-  await page.route('http://127.0.0.1:47838/**',async route=>{
+  await page.route('**/__integration/api/**',route=>route.fulfill({status:404,json:{error:'Explicit remote bridge fixture'}}));
+ await page.route('http://127.0.0.1:47838/**',async route=>{
     const endpoint=new URL(route.request().url()).pathname,body=route.request().postData()?route.request().postDataJSON():{};
     if(endpoint.startsWith('/media/'))return route.fulfill({body:poster,contentType:'image/png'});
     let value={};

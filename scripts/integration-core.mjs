@@ -1,7 +1,7 @@
 import {promises as fs, createReadStream} from 'node:fs';
 import {Readable} from 'node:stream';
 import path from 'node:path';
-import {createHash, randomUUID} from 'node:crypto';
+import {createHash, createHmac, randomBytes, randomUUID, timingSafeEqual} from 'node:crypto';
 import {inflateSync} from 'node:zlib';
 
 const mimeTypes={'.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.gif':'image/gif','.webp':'image/webp','.avif':'image/avif','.mp4':'video/mp4','.webm':'video/webm','.mov':'video/quicktime','.mkv':'video/x-matroska','.mp3':'audio/mpeg','.flac':'audio/flac','.wav':'audio/wav'};
@@ -91,12 +91,20 @@ export class IntegrationStore {
   async load() {await fs.mkdir(this.directory,{recursive:true});for(const [file,key] of [['config.json','config'],['imports.json','ledger']]) {try {this[key]={...this[key],...JSON.parse(await fs.readFile(path.join(this.directory,file),'utf8'))};} catch(error) {if(error.code!=='ENOENT')throw error;}}}
   async save(file,value) {const text=JSON.stringify(value,null,2);const task=this.saveQueue.catch(()=>{}).then(async()=>{const target=path.join(this.directory,file);await fs.writeFile(target+'.tmp',text,{mode:0o600});await fs.rename(target+'.tmp',target);});this.saveQueue=task;await task;}
   publicConfig() {const {hydrusApiKey,...config}=this.config;return {...config,hasHydrusKey:!!hydrusApiKey};}
+  async withConnectionLock(action) {
+    const task=(this.connectionQueue||Promise.resolve()).catch(()=>{}).then(action);
+    this.connectionQueue=task;return task;
+  }
   async configure(input) {
+    return this.withConnectionLock(()=>this.configureConnection(input));
+  }
+  async configureConnection(input) {
     if(this.scanning)throw new Error('Wait for the current import-folder scan before changing server connections.');
     const next={...this.config};
     for(const key of ['comfyUrl','hydrusUrl']) if(key in input)next[key]=input[key]?validateURL(input[key]):'';
     for(const key of ['hydrusApiKey','tagServiceKey']) if(typeof input[key]==='string' && (key!=='hydrusApiKey'||input[key]))next[key]=input[key].trim();
-    if(next.comfyUrl!==this.config.comfyUrl)next.comfyInstanceId='';
+    // Keep the pinned installation even when an address changes. Replacements
+    // require an explicit identity confirmation, not an automatic reset.
     if(input.comfyInstanceId && input.comfyInstanceId!==this.config.comfyInstanceId) {
       const identity=await this.comfyIdentity(next.comfyUrl);
       if(identity.instanceId!==input.comfyInstanceId)throw new Error('ComfyUI instance changed during pairing. Check the connection again.');
@@ -125,11 +133,34 @@ export class IntegrationStore {
     if(identity.mediaRootMatches===false)throw new Error('Gallery media root differs from its catalogue. Start the Gallery monitor for the configured folder before transferring files.');
     return identity;
   }
+  async handshake() {
+    return this.withConnectionLock(()=>this.performHandshake());
+  }
+  async performHandshake() {
+    if(!this.config.hydrusApiKey)throw new Error('Save your Hydrus API connection in Hydrus Web first.');
+    const identity=await this.comfyIdentity();
+    if(this.config.comfyInstanceId && identity.instanceId!==this.config.comfyInstanceId)throw new Error('ComfyUI instance changed. Confirm the replacement installation before reconnecting.');
+    const nonce=randomBytes(32).toString('hex');
+    const proof=role=>createHmac('sha256',this.config.hydrusApiKey).update(`hydrus-web-handshake-v1\n${role}\n${identity.instanceId}\n${nonce}`).digest('hex');
+    const response=await this.fetcher(this.config.comfyUrl+'/Gallery/handshake',{method:'POST',redirect:'error',headers:{'Content-Type':'application/json','X-Gallery-Instance':identity.instanceId},body:JSON.stringify({nonce,proof:proof('client')}),signal:AbortSignal.timeout(10000)});
+    if(!response.ok){let error;try{error=(await response.json()).error;}catch{}throw new Error(error||'Gallery handshake failed (HTTP '+response.status+'). Update Gallery and save its Hydrus connection.');}
+    const result=await response.json(),expected=Buffer.from(proof('server')),received=Buffer.from(typeof result.proof==='string'?result.proof:'');
+    if(result.instanceId!==identity.instanceId||expected.length!==received.length||!timingSafeEqual(expected,received))throw new Error('Gallery did not prove the saved Hydrus connection. Transfers remain blocked.');
+    if(!this.config.comfyInstanceId){
+      if(this.scanning)throw new Error('Wait for the current import scan before completing the connection.');
+      const next={...this.config,comfyInstanceId:identity.instanceId};await this.save('config.json',next);this.config=next;
+    }
+    return this.publicConfig();
+  }
   async diagnostics() {
     const checks=[];let identity;
     try { identity=await this.comfyIdentity();checks.push({name:'Gallery instance',ok:true,message:identity.instanceId}); }
     catch(error){checks.push({name:'Gallery instance',ok:false,message:error.message});}
-    checks.push({name:'Transfer pairing',ok:!!identity&&identity.instanceId===this.config.comfyInstanceId,message:identity&&identity.instanceId===this.config.comfyInstanceId?'Paired':'Pair this installation before transferring files.'});
+    if(identity && !this.config.comfyInstanceId) {
+      try{await this.handshake();checks.push({name:'Automatic handshake',ok:true,message:'Gallery and Hydrus Web verified their saved Hydrus connection.'});}
+      catch(error){checks.push({name:'Automatic handshake',ok:false,message:error.message});}
+    }
+    checks.push({name:'Transfer pairing',ok:!!identity&&identity.instanceId===this.config.comfyInstanceId,message:identity&&identity.instanceId===this.config.comfyInstanceId?'Connected automatically':this.config.comfyInstanceId?'Instance changed. Confirm the intended replacement.':'Waiting for Gallery and Hydrus Web to have the same Hydrus API key configured.'});
     if(identity?.mediaRootMatches===false)checks.push({name:'Gallery media root',ok:false,message:'Gallery catalogue and static media roots differ. Start the Gallery monitor for the configured folder in ComfyUI.'});
     try {
       const settings=await(await this.comfy('/Gallery/settings')).json();
@@ -142,7 +173,7 @@ export class IntegrationStore {
         checks.push({name:'Media access',ok:true,message:files[0].name||files[0].url});
       } else checks.push({name:'Media access',ok:false,message:'No files available to verify. Check the Gallery folder setting.'});
     } catch(error){checks.push({name:'Gallery / media access',ok:false,message:error.message});}
-    return {checks,instanceId:identity?.instanceId};
+    return {checks,instanceId:identity?.instanceId,pairedInstanceId:this.config.comfyInstanceId};
   }
   async comfy(endpoint,body,options={}) {if(!this.config.comfyUrl)throw new Error('Configure the ComfyUI address.');const response=await this.fetcher(this.config.comfyUrl+endpoint,{method:body===undefined?'GET':'POST',redirect:'error',headers:{...(body===undefined?{}:{'Content-Type':'application/json'}),...(this.config.comfyInstanceId?{'X-Gallery-Instance':this.config.comfyInstanceId}:{}),...options.headers},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(30000)});if(!response.ok)throw new Error(`ComfyUI ${endpoint}: HTTP ${response.status}`);return response;}
   async addFolder(input) {

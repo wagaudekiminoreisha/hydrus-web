@@ -1,8 +1,9 @@
 <section class="integration">
   <h1>{{comfyBrowser ? 'ComfyUI' : 'ComfyUI & import folders'}}</h1>
-  <p *ngIf="!comfyBrowser || !connected">Connect the integration bridge running on your computer. Use its HTTPS Tailscale address from your phone or tablet.</p>
+  <p *ngIf="integration.managed()">The local connection starts and stops with Hydrus Web. Your saved ComfyUI address and Hydrus connection establish the handshake automatically.</p>
+  <p *ngIf="!integration.managed() && (!comfyBrowser || !connected)">Connect an authenticated remote bridge, or start Hydrus Web locally with npm start for automatic setup.</p>
   <p *ngIf="comfyBrowser">Browse your ComfyUI Gallery images and videos. <a routerLink="/integration">Integration settings &amp; import folders</a></p>
-  <div class="controls" *ngIf="!comfyBrowser || !connected">
+  <div class="controls" *ngIf="!integration.managed() && (!comfyBrowser || !connected)">
     <label>Bridge address<input [(ngModel)]="bridgeUrl" type="url" placeholder="http://127.0.0.1:47838"></label>
     <label>Bridge token<input [(ngModel)]="token" type="password" autocomplete="off"></label>
     <button (click)="connect()" [disabled]="busy">Connect</button>
@@ -20,7 +21,7 @@
     <details *ngIf="diagnostics" open><summary>ComfyUI connection diagnostics</summary>
       <p *ngFor="let check of diagnostics.checks"><strong>{{check.ok ? '✓' : '✗'}} {{check.name}}:</strong> {{check.message}}</p>
       <button (click)="checkConnection()" [disabled]="busy">Check connection</button>
-      <button *ngIf="diagnostics.instanceId && diagnostics.instanceId !== config.comfyInstanceId" (click)="pairInstance()" [disabled]="busy">Pair this Gallery instance for transfers</button>
+      <button *ngIf="config.comfyInstanceId && diagnostics.instanceId && diagnostics.instanceId !== config.comfyInstanceId" (click)="pairInstance()" [disabled]="busy">Confirm replacement Gallery instance</button>
     </details>
     <h2>{{comfyBrowser ? 'ComfyUI media' : 'Media workspace'}}</h2>
     <div class="controls">

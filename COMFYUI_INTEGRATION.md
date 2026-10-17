@@ -10,20 +10,30 @@ The Windows/Electron application starts its private integration bridge automatic
 
 The desktop bridge saves configuration and import history in the application's user-data directory under `integration`. Import-folder scans run while the desktop app is open. Pausing/removing a rule never deletes original media. Hiding integration controls only changes this client’s navigation; use Pause on a folder rule to stop its imports.
 
-## Browser, iOS and iPadOS setup
+## Local browser and server setup
 
-Run the bridge on the computer that has access to the directories you want to import. It requires Node.js 20 or newer and uses built-in Node modules; no separate package installation is needed for the bridge scripts.
+Run Hydrus Web normally on the computer that has access to your media. It manages its local connection automatically; there is no separate bridge command or token setup.
 
 From the Hydrus Web repository in PowerShell:
 
 ```powershell
-$env:HYDRUS_WEB_BRIDGE_TOKEN = (node -p "require('node:crypto').randomBytes(32).toString('hex')")
-$env:HYDRUS_WEB_BRIDGE_ORIGINS = 'http://localhost:8080,http://localhost:4200,capacitor://localhost,http://localhost'
 npm start
 # Or serve the production build: npm run mobile:serve
 ```
 
-Dev mode (`npm start`, including `start:ssl`) and production server mode (`mobile` / `mobile:serve`) manage the bridge when `HYDRUS_WEB_BRIDGE_TOKEN` is configured. Without it, they serve Hydrus Web normally. Reuse the same private token in subsequent sessions. A port conflict fails startup instead of adopting another bridge. The standalone `npm run integration` command remains available. No public bootstrap endpoint exposes credentials.
+Open the app through `http://localhost:4200` (dev) or `http://localhost:8080` (production server). In Integration settings, save the ComfyUI address once. The local connection reuses the Hydrus API key already saved in Hydrus Web. In ComfyUI-Gallery, save the Hydrus connection using the same API key. The handshake completes automatically, including when Gallery's settings are saved after Hydrus Web is already open. The server retries pending setup on its 10-second background tick after any active folder scan. The Integration/ComfyUI view refreshes pending connection status every 15 seconds. Connection diagnostics show missing configuration, mismatched keys and outdated Gallery installations.
+
+The app generates a private runtime credential and uses a same-origin proxy at `/__integration/api`. Credentials stay in the server process. That proxy accepts only direct loopback requests with a loopback Host and rejects cross-origin and forwarded requests. The bridge remains authenticated and uses a private ephemeral port by default. Import-folder rules only run when configured. Stop the app to stop its bridge. A configured port conflict fails startup instead of adopting another bridge.
+
+## Remote browser, iOS and iPadOS setup
+
+Remote clients use an explicitly authenticated bridge connection. Start the same app process with a private token and allowed origins configured:
+
+```powershell
+$env:HYDRUS_WEB_BRIDGE_TOKEN = (node -p "require('node:crypto').randomBytes(32).toString('hex')")
+$env:HYDRUS_WEB_BRIDGE_ORIGINS = 'http://localhost:8080,http://localhost:4200,capacitor://localhost,http://localhost'
+npm run mobile:serve
+```
 
 The default address is `http://127.0.0.1:47838`. Enter this address and the value of `HYDRUS_WEB_BRIDGE_TOKEN` in Hydrus Web's integration setup. If your web app has another origin, include its exact scheme, hostname and port in `HYDRUS_WEB_BRIDGE_ORIGINS`. `capacitor://localhost` is the iOS wrapper's origin.
 
@@ -41,7 +51,7 @@ Configuration and completed-import signatures are saved in `~/.hydrus-web-integr
 
 After saving the ComfyUI address, inspect **ComfyUI connection diagnostics**. It checks Gallery's identity endpoint, catalogue and one real media stream. A healthy bridge alone does not prove ComfyUI is reachable. If the catalogue and static media roots differ, start Gallery's monitor for the selected folder from ComfyUI; Hydrus Web does not change the monitor configuration.
 
-Select **Pair this Gallery instance for transfers** after checking the displayed installation ID. Gallery persists this non-secret ID in its ComfyUI user directory as `gallery-instance-id`. Keep that file across upgrades; separate installations need separate IDs. Transfers verify the paired identity and include an expected-instance header that Gallery checks before processing requests, including uploads. A reverse proxy that changes installations causes a failure. Redirects are rejected. Pairing a replacement clears cached search assets; refresh the search afterward. Older Gallery versions must be updated and ComfyUI restarted before pairing works.
+Initial pairing is automatic: both apps prove knowledge of their saved Hydrus API key using nonce-bound HMAC proofs. The Hydrus key is never included in the handshake request or response. Gallery persists its non-secret installation ID in the ComfyUI user directory as `gallery-instance-id`. Keep that file across upgrades; separate installations need separate IDs. Transfers verify the pinned identity and include an expected-instance header that Gallery checks before processing requests, including uploads. Changing a URL retains the pin. A changed installation fails until **Confirm replacement Gallery instance** is explicitly chosen in diagnostics. Redirects are rejected. Confirming a replacement clears cached search assets; refresh the search afterward. Older Gallery versions must be updated and ComfyUI restarted before automatic pairing works.
 
 ## Import folders
 

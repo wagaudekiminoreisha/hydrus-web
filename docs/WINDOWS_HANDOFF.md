@@ -2,6 +2,8 @@
 
 ## Windows continuation results
 
+Correction on 2026-10-18: dev/server startup now manages the local bridge without an environment token. A guarded loopback-only same-origin proxy supplies private authentication internally. The UI discovers it automatically, reuses its saved Hydrus API settings, and completes a two-sided nonce/HMAC handshake using Gallery's saved Hydrus key. Pending Gallery setup is retried every 15 seconds while the view is open. Both apps must use the same Hydrus API key. Initial pairing needs no extra button; confirming a replacement remains explicit. Changing an address retains the pinned installation ID. The production and actual Angular dev browser fixtures verify no-token startup and automatic completion when Gallery is configured later. This supersedes the environment-token/manual-pairing setup described in the original continuation below. Remote clients still use an explicitly authenticated connection.
+
 The PC checkout is now on `codex/windows-handoff`. The pre-existing PC lockfile edits were reapplied cleanly and are also retained in stash `windows-pc-before-handoff`. No default branch or release was published.
 
 Gallery was cloned separately into `.work/ComfyUI-Gallery` from its current default branch and placed on `codex/windows-integration`. This is an independent Git repository, ignored by the Hydrus checkout. Its source changes and rebuilt tracked web bundle are carried on `codex/windows-integration`; they have not been installed into an existing ComfyUI installation.
