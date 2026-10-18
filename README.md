@@ -151,8 +151,8 @@ Run `ng e2e` to execute the end-to-end tests via [Protractor](http://www.protrac
 
 To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI README](https://github.com/angular/angular-cli/blob/master/README.md).
 
-## ComfyUI integration, import folders and playback
+## ComfyUI output browser
 
-Open Settings to set up the optional integration workspace. It combines Hydrus and ComfyUI media, searches saved prefix/lineage associations, transfers media and prompt metadata, manages selected file tags, and runs configurable directory imports through the integration bridge. Desktop builds include a private bridge; browser/iOS clients connect to a bridge on the computer holding their media.
+Hydrus Web connects directly to the running ComfyUI server with ComfyUI-Gallery installed. In Settings → ComfyUI, save ComfyUI's normal address. Save the same Hydrus API key in both applications; the handshake completes automatically. No separate bridge process, address or token is required. The ComfyUI entry browses output folders with image/video previews and paging.
 
-See [COMFYUI_INTEGRATION.md](COMFYUI_INTEGRATION.md) for setup, Tailscale access, API capabilities and validation. File Viewing settings now include Play next / slideshow and an image interval. Mobile thumbnails support long-press selection and the viewer uses inline playback and larger touch targets.
+See [COMFYUI_INTEGRATION.md](COMFYUI_INTEGRATION.md) for setup, connection verification, remote addresses and validation. Existing Node import-folder rules are retained, but the old scheduler no longer starts with the app.

@@ -1,84 +1,74 @@
-# ComfyUI integration and automatic import folders
+# Direct ComfyUI Gallery connection
 
-Update ComfyUI-Gallery as well as Hydrus Web. Restart ComfyUI so the new metadata/provenance routes are available. The integration workspace appears in navigation after a successful setup; ordinary Hydrus browsing remains available independently.
+Hydrus Web now talks directly to Gallery inside the running ComfyUI server.
+There is no bridge address/token field, separate Node bridge process, or localhost-only
+bootstrap. The Gallery browser tab need not be open; ComfyUI itself must be running.
 
-**ComfyUI** is a separate, always-visible navigation entry for Gallery images and videos. It reconnects to the saved bridge and loads ComfyUI media when opened; Hydrus credentials are not required for browsing. For a new connection, use **Integration settings & import folders** to save the ComfyUI address, then return to **ComfyUI**. It starts with ComfyUI media; Source and Prefix / lineage can switch to Gallery targets or mixed Hydrus views. The integration workspace remains available for transfers and import-folder configuration.
+## Setup
 
-## Desktop setup
+1. Update both Hydrus Web and ComfyUI-Gallery; restart ComfyUI after updating Python files.
+2. Save your Hydrus API key in Hydrus Web's **Settings → API Configuration**.
+3. Save the same key in **ComfyUI-Gallery → Hydrus connection settings**.
+4. In Hydrus Web's **Settings → ComfyUI**, enter ComfyUI's normal HTTP(S) address,
+   for example `http://127.0.0.1:8188` on the same computer, or its LAN/Tailscale address.
+   Choose **Save & connect**. No `/Gallery` suffix or bridge token is needed.
+5. Open **ComfyUI output** to browse folders and media.
 
-The Windows/Electron application starts its private integration bridge automatically while the app runs. Open **Settings → Set up ComfyUI integration & automatic import folders**. The bridge address and token are supplied by the desktop application. Click **Connect**, fill in the ComfyUI and Hydrus addresses, provide the Hydrus API key, and save. Choose a local tag service and save again after the services load.
+The address is interpreted by the browser. On a phone, `127.0.0.1` means the phone,
+so use the ComfyUI computer's reachable address. An HTTPS page may need HTTPS for
+ComfyUI too because browsers can block mixed content. Authentication at a reverse
+proxy remains that proxy's responsibility; this change does not bypass it.
 
-The desktop bridge saves configuration and import history in the application's user-data directory under `integration`. Import-folder scans run while the desktop app is open. Pausing/removing a rule never deletes original media. Hiding integration controls only changes this client’s navigation; use Pause on a folder rule to stop its imports.
+Saved addresses reconnect automatically. While this view is open, pending Gallery
+setup retries every 15 seconds; it also handles Gallery being configured later.
+Unsaved address edits are not saved by background retries. The settings form stays
+available when the connection fails, and network requests have bounded timeouts.
 
-## Local browser and server setup
+## Handshake and browser access
 
-Run Hydrus Web normally on the computer that has access to your media. It manages its local connection automatically; there is no separate bridge command or token setup.
+Gallery exposes only `/Gallery/hydrus-web/*` to this protocol. A one-use 30-second
+challenge is bound to the Hydrus Web origin and Gallery installation ID. Both sides
+prove possession of their saved Hydrus API key with HMAC-SHA256. The key is never
+sent to ComfyUI by Hydrus Web and does not appear in media URLs. The browser uses a
+bundled HMAC implementation, including on LAN HTTP pages without Web Crypto support.
 
-From the Hydrus Web repository in PowerShell:
+Successful pairing pins the installation ID in this browser. Changing an address
+retains that pin. A different installation requires explicit replacement
+confirmation followed by successful proof; a mismatched key never silently pairs.
+An in-memory, origin-bound one-hour bearer session authorizes output requests.
+Expired sessions re-handshake automatically, and rotating Gallery's Hydrus key
+invalidates sessions and media tickets. Media links authorize only one file and
+representation, expire after five minutes or at session expiry, and support range
+requests for playback. Reopening a file obtains a new link.
 
-```powershell
-npm start
-# Or serve the production build: npm run mobile:serve
-```
+Gallery's scoped middleware handles this authenticated protocol before ComfyUI's
+normal cross-site guard. That guard still protects all unrelated ComfyUI routes;
+no global `--enable-cors-header '*'` flag is necessary. Output browsing uses the
+actual ComfyUI output root, with shallow listings, pagination, lazy thumbnails,
+media-only file access and path confinement. It does not scan generation metadata.
 
-Open the app through `http://localhost:4200` (dev) or `http://localhost:8080` (production server). In Integration settings, save the ComfyUI address once. The local connection reuses the Hydrus API key already saved in Hydrus Web. In ComfyUI-Gallery, save the Hydrus connection using the same API key. The handshake completes automatically, including when Gallery's settings are saved after Hydrus Web is already open. The server retries pending setup on its 10-second background tick after any active folder scan. The Integration/ComfyUI view refreshes pending connection status every 15 seconds. Connection diagnostics show missing configuration, mismatched keys and outdated Gallery installations.
+## Launching and existing features
 
-The app generates a private runtime credential and uses a same-origin proxy at `/__integration/api`. Credentials stay in the server process. That proxy accepts only direct loopback requests with a loopback Host and rejects cross-origin and forwarded requests. The bridge remains authenticated and uses a private ephemeral port by default. Import-folder rules only run when configured. Stop the app to stop its bridge. A configured port conflict fails startup instead of adopting another bridge.
+- `npm start` builds/watches local source and runs the development server.
+- `npm run mobile` builds and serves the production frontend.
+- `npm run mobile:serve` serves the existing production build.
+- Electron serves its bundled frontend. It no longer starts a private Node bridge.
 
-## Remote browser, iOS and iPadOS setup
+None of these commands pulls Git updates. After applying a snapshot to a production
+build, restart its server and hard-refresh the browser/PWA to load the new files.
+This direct connection also works from other static deployments when their browser
+can reach ComfyUI.
 
-Remote clients use an explicitly authenticated bridge connection. Start the same app process with a private token and allowed origins configured:
+The current ComfyUI entry remains an output-folder browser. Hydrus search/export/tag
+controls remain deferred. The old Node import-folder scheduler and its saved rules
+are retained in source/data for compatibility, but normal app launch no longer
+starts that scheduler and its bridge-only configuration is removed from the UI.
+Gallery's own Hydrus features remain available in Gallery.
 
-```powershell
-$env:HYDRUS_WEB_BRIDGE_TOKEN = (node -p "require('node:crypto').randomBytes(32).toString('hex')")
-$env:HYDRUS_WEB_BRIDGE_ORIGINS = 'http://localhost:8080,http://localhost:4200,capacitor://localhost,http://localhost'
-npm run mobile:serve
-```
-
-The default address is `http://127.0.0.1:47838`. Enter this address and the value of `HYDRUS_WEB_BRIDGE_TOKEN` in Hydrus Web's integration setup. If your web app has another origin, include its exact scheme, hostname and port in `HYDRUS_WEB_BRIDGE_ORIGINS`. `capacitor://localhost` is the iOS wrapper's origin.
-
-For a phone/tablet, publish the bridge over Tailscale HTTPS from another terminal:
-
-```powershell
-tailscale serve --bg --https=8443 http://127.0.0.1:47838
-```
-
-Use the HTTPS address printed by Tailscale, including `:8443`, as the bridge address. A web/PWA deployment's own HTTPS origin must also be allowed by the bridge; the native iOS origin above is already listed. Keep the bridge process running. `tailscale serve` runs the HTTPS proxy in the background, not the Node process. See the [Tailscale Serve reference](https://tailscale.com/docs/reference/tailscale-cli/serve).
-
-Configuration and completed-import signatures are saved in `~/.hydrus-web-integration`; set `HYDRUS_WEB_BRIDGE_DATA` to use another directory. The Hydrus key is stored on the bridge and excluded from configuration responses. Media uses temporary per-file streaming links; the permanent bridge token is not embedded in media URLs. Hydrus and ComfyUI addresses are interpreted on the bridge computer, so `127.0.0.1` can be used when they run alongside it.
-
-## Connection diagnostics and pairing
-
-After saving the ComfyUI address, inspect **ComfyUI connection diagnostics**. It checks Gallery's identity endpoint, catalogue and one real media stream. A healthy bridge alone does not prove ComfyUI is reachable. If the catalogue and static media roots differ, start Gallery's monitor for the selected folder from ComfyUI; Hydrus Web does not change the monitor configuration.
-
-Initial pairing is automatic: both apps prove knowledge of their saved Hydrus API key using nonce-bound HMAC proofs. The Hydrus key is never included in the handshake request or response. Gallery persists its non-secret installation ID in the ComfyUI user directory as `gallery-instance-id`. Keep that file across upgrades; separate installations need separate IDs. Transfers verify the pinned identity and include an expected-instance header that Gallery checks before processing requests, including uploads. Changing a URL retains the pin. A changed installation fails until **Confirm replacement Gallery instance** is explicitly chosen in diagnostics. Redirects are rejected. Confirming a replacement clears cached search assets; refresh the search afterward. Older Gallery versions must be updated and ComfyUI restarted before automatic pairing works.
-
-## Import folders
-
-Open **Automatic import folders**, enter an absolute directory on the bridge computer, then select recursive scanning, fixed tags, the inherited tag prefix, optional prefix association, and archive behavior. Save the rule. A file must have the same size and modification time in two scans before it imports. Completed imports survive restarts; tagging/note failures are retried before a file is marked complete. Originals are retained, symlinks are skipped, and imports are limited to 512 MB per file.
-
-**Inherit PNG prompts** reads ComfyUI's PNG metadata. Prompt inheritance adds the standalone `comfyui outputs` tag alongside `positive_prompt:` and `negative_prompt:` tags. An optional custom inherited-tag prefix applies only when explicitly configured. Choosing a prefix associates the imported Hydrus hash with that prefix in ComfyUI-Gallery.
-
-Uncheck **Automatically import this directory** to configure a local download folder for viewing/export without automatic imports. Paused folders remain available in **Configured local folders**. Scanning is handled by this bridge; it does not create or change the main Hydrus client's native import-folder objects, which its public API does not expose.
-
-## Media and metadata
-
-Choose Hydrus, ComfyUI, both, or configured local folders. Sort by date, name, or random order. Prefix/lineage search uses saved prefix IDs, paired hashes and generated source links, including Hydrus originals whose tags do not match prefix prompt words. The UI loads 48 files per cursor page and continues beyond 200 files. Hydrus metadata requests are bounded at 200; prefix results fetch bounded metadata batches once to establish global date order. Gallery supplies a complete catalogue once per search. Thumbnails and media load on demand.
-
-Select media to export it to Hydrus, sync its prompts/tags to an existing Hydrus file, or copy Hydrus media to ComfyUI input. Exports preserve available metadata as a Hydrus note. Image copies retain their Hydrus origin; video copies use the Gallery provenance endpoint. Media copied to input is not automatically inserted into a running workflow.
-
-ComfyUI must be online for its gallery, prefixes and transfers. Hydrus browsing and configured local folders remain usable when ComfyUI is offline. PNG prompts can be inherited from local download folders independently of ComfyUI. API permissions must cover the actions selected: importing, reading files, writing tags, and writing notes as applicable.
-
-## Tags and relationships
-
-Add, remove or replace tags on selected Hydrus files. Look up parents and aliases remotely. Parent/alias definitions are read-only because the [published Hydrus API](https://hydrusnetwork.github.io/hydrus/developer_api.html) exposes relationship lookup but no relationship-write endpoint. Define those relationships in the main Hydrus client.
-
-## Touch and playback
-
-Hold a thumbnail to select it; tap further thumbnails to extend selection. Moving your finger cancels the hold so ordinary scrolling is preserved. Controls have larger touch targets, media plays inline on iOS, and the viewer honors safe-area insets.
-
-Enable **Play next / slideshow** in **Settings → File Viewing**, and choose the image interval. Videos/audio advance when playback ends; images advance after loading and waiting for the selected interval. The viewer's Play next/Pause control toggles this during a session. Play next overrides media looping and stops at the final item. Backgrounding or closing the viewer clears image timers. Mobile browsers may require a tap on the native Play control before allowing unmuted playback.
-
-## Validation
-
-`npm run build`, `npm run test:integration`, and the browser fixtures in `scripts/browser-integration.cjs` / `scripts/browser-playback.cjs` cover imports, retries, saved deduplication, hash-based lineage, metadata transfer, streaming permissions, mobile interactions and playback cleanup. Browser fixtures require Playwright, Chrome, and a built app served on port 8192. They use simulated Hydrus data and a touch-enabled Chromium browser; physical iOS/iPadOS device validation remains separate. The isolated Windows desktop fixture in `scripts/desktop-integration.cjs` also verifies the automatic private bridge and its origin restrictions.
+Validation: production Angular build; real Python Gallery endpoint in a cross-origin
+Chrome check covering delayed Gallery setup, mismatched keys, session renewal,
+installation replacement, folder navigation, 120-file paging, preview/original
+loading and mobile layout; Python tests for scoped origin handling, challenge replay,
+key rotation, media ranges and traversal protection. Older browser fixtures targeting
+the Node bootstrap are historical; `scripts/browser-direct-gallery.cjs` covers the
+current architecture. This fixture uses temporary media and test credentials.

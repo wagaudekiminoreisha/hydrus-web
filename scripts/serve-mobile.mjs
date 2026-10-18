@@ -5,8 +5,6 @@ import {networkInterfaces} from 'node:os';
 import {dirname, extname, join, relative, resolve, sep} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
-import {startManagedBridge} from './managed-bridge.mjs';
-import localIntegration from './local-integration-proxy.cjs';
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const projectDirectory = resolve(scriptDirectory, '..');
@@ -64,9 +62,6 @@ if(Boolean(tlsCertificatePath) !== Boolean(tlsKeyPath)) {
 const useHttps = Boolean(tlsCertificatePath && tlsKeyPath);
 const requestHandler = (request, response) => {
   const requestUrl = new URL(request.url || '/', 'http://hydrus-web.local');
-  if(requestUrl.pathname===localIntegration.PREFIX || requestUrl.pathname.startsWith(localIntegration.PREFIX+'/')) {
-    localIntegration.proxyLocalIntegration(request,response,bridge);return;
-  }
   if (requestUrl.pathname.startsWith(apiProxyPrefix)) {
     proxyHydrusRequest(request, response, requestUrl);
     return;
@@ -81,9 +76,7 @@ const server = useHttps
     }, requestHandler)
   : createHttpServer(requestHandler);
 
-const bridge = await startManagedBridge();
-server.once('close', () => bridge?.close());
-const stopServers = () => { server.close(); bridge?.close(); };
+const stopServers = () => { server.close(); };
 process.once('SIGINT', stopServers);
 process.once('SIGTERM', stopServers);
 server.listen(port, host, () => {
@@ -102,7 +95,6 @@ server.listen(port, host, () => {
 });
 
 server.on('error', error => {
-  bridge?.close();
   console.error(`Unable to start Hydrus Web: ${error.message}`);
   process.exitCode = 1;
 });

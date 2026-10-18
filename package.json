@@ -75,6 +75,7 @@
     }
   },
   "dependencies": {
+    "@noble/hashes": "2.4.0",
     "@angular/animations": "^18.0.1",
     "@angular/cdk": "^18.0.0",
     "@angular/common": "^18.0.1",
