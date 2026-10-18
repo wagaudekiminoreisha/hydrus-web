@@ -1,5 +1,8 @@
 # Windows handoff — 2026-10-17
 
+Live diagnosis and connection toggle (2026-10-18): Hydrus Web on localhost:8080 was serving the direct build while the production Gallery at C:/ComfyUI_windows_portable/ComfyUI/custom_nodes/ComfyUI-Gallery remained clean at aed2fe7, which lacks direct_connection.py. Live endpoint probes returned 404 without Origin / 403 with browser Origin; Gallery's instance endpoint worked. Added Gallery Hydrus setting “Allow Hydrus Web to connect” (default on), an authenticated endpoint gate, retained visible failures and explicit unsaved-address guidance in Hydrus Web. The encoder now shows recognised omitted/retained hair terms without changing saved chips/counts.
+
+
 Direct Gallery connection correction (2026-10-18): supersedes the Node bridge setup below. Hydrus Web now calls `/Gallery/hydrus-web/*` at the saved ComfyUI address. Gallery's existing ComfyUI process owns the authenticated origin-scoped handshake and output browser endpoints; `npm start`, mobile serving and Electron no longer start a Node integration bridge. The settings form is always available with ComfyUI address and Save & connect, without bridge URL/token fields. Shared saved Hydrus keys establish a one-use challenge/HMAC session with installation pinning and explicit replacement confirmation. Pending setup retries in the open view, sessions renew on expiry, and Gallery keys invalidate old sessions. The current output-only browsing scope is unchanged; bridge-only import-folder configuration is retired from this UI and old rules remain stored. See `COMFYUI_INTEGRATION.md`; current browser coverage is `scripts/browser-direct-gallery.cjs`, while old Node-bootstrap browser fixtures are historical.
 
 

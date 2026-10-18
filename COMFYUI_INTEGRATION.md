@@ -8,11 +8,13 @@ bootstrap. The Gallery browser tab need not be open; ComfyUI itself must be runn
 
 1. Update both Hydrus Web and ComfyUI-Gallery; restart ComfyUI after updating Python files.
 2. Save your Hydrus API key in Hydrus Web's **Settings → API Configuration**.
-3. Save the same key in **ComfyUI-Gallery → Hydrus connection settings**.
+3. In **ComfyUI-Gallery → Hydrus connection settings**, enable **Allow Hydrus Web to connect**, save the same key, then choose **Save connection**. The toggle is enabled by default for compatibility; disabling it blocks this connection inside ComfyUI.
 4. In Hydrus Web's **Settings → ComfyUI**, enter ComfyUI's normal HTTP(S) address,
    for example `http://127.0.0.1:8188` on the same computer, or its LAN/Tailscale address.
    Choose **Save & connect**. No `/Gallery` suffix or bridge token is needed.
 5. Open **ComfyUI output** to browse folders and media.
+
+The connection is hosted inside ComfyUI; the toggle does not start another process or open another port.
 
 The address is interpreted by the browser. On a phone, `127.0.0.1` means the phone,
 so use the ComfyUI computer's reachable address. An HTTPS page may need HTTPS for
@@ -72,3 +74,9 @@ loading and mobile layout; Python tests for scoped origin handling, challenge re
 key rotation, media ranges and traversal protection. Older browser fixtures targeting
 the Node bootstrap are historical; `scripts/browser-direct-gallery.cjs` covers the
 current architecture. This fixture uses temporary media and test credentials.
+
+If the page only says it is not connected, check the saved-address message and
+visible error in Settings. A Gallery installation before commit `d82aa5a` has no
+direct endpoint: its ordinary Gallery can work while Hydrus Web cannot connect.
+Update the actual `ComfyUI/custom_nodes/ComfyUI-Gallery` checkout and restart ComfyUI;
+updating the development checkout alone does not update that installation.

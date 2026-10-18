@@ -13,7 +13,9 @@
     <p>Use the address reachable from this browser. For ComfyUI on another computer, enter that computer’s network address.</p>
     <a routerLink="/comfyui">Browse output directory</a>
   </ng-container>
-  <p role="status" aria-live="polite">{{status}}</p>
+  <p *ngIf="integration.url">Saved ComfyUI address: {{integration.url}}</p>
+  <p *ngIf="connectionError" role="alert">{{connectionError}}</p>
+  <p role="status" aria-live="polite">{{status === connectionError ? '' : status}}</p>
   <section *ngIf="comfyBrowser && !connected" class="browser-empty"><p>Set your ComfyUI address in Settings and configure Gallery’s Hydrus connection to browse output files.</p><a routerLink="/settings/comfyui">Open ComfyUI settings</a></section>
   <ng-container *ngIf="connected">
     <ng-container *ngIf="comfyBrowser">

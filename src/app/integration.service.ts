@@ -21,6 +21,7 @@ export class IntegrationService {
   private readonly endpoint='/Gallery/hydrus-web';
   constructor(private http:HttpClient, private api:HydrusApiSettingsService) {}
   setAddress(value:string) {
+    if(!value.trim())throw new Error('Enter and save your ComfyUI address first.');
     const parsed=new URL(value.trim());
     if(!['http:','https:'].includes(parsed.protocol)||parsed.username||parsed.password||parsed.search||parsed.hash)throw new Error('Enter ComfyUI’s HTTP(S) address without credentials, query parameters or a fragment.');
     const address=parsed.href.replace(/\/$/,'');
@@ -40,8 +41,9 @@ export class IntegrationService {
     if(!key)throw new Error('Save the Hydrus API key in API Configuration, and save the same key in Gallery’s Hydrus settings.');
     this.session='';
     const task=(async()=>{
-      const health=await this.send<{ok:boolean;version:number;instanceId:string;challenge:string;configured:boolean}>('/health',undefined,false);
-      if(!health.ok||health.version!==1||!health.instanceId||!health.challenge)throw new Error('Update ComfyUI-Gallery and restart ComfyUI to enable the direct connection.');
+      const health=await this.send<{ok:boolean;version:number;instanceId:string;challenge:string;configured:boolean;enabled?:boolean}>('/health',undefined,false);
+      if(!health.ok||health.version!==1||!health.instanceId||(health.enabled!==false&&!health.challenge))throw new Error('Update ComfyUI-Gallery and restart ComfyUI to enable the direct connection.');
+      if(health.enabled===false)throw new Error('Hydrus Web connection is disabled in Gallery. Enable “Allow Hydrus Web to connect” in Gallery’s connection settings and save.');
       const pinned=localStorage.getItem(PIN);
       if(pinned&&pinned!==health.instanceId&&!confirmReplacement){this.replacement.set(health.instanceId);throw new Error('This address now points to a different Gallery installation. Confirm the replacement before browsing.');}
       if(confirmReplacement&&this.replacement()!==health.instanceId)throw new Error('Gallery changed again. Check the address before confirming a replacement.');
@@ -54,6 +56,7 @@ export class IntegrationService {
     })();
     this.pending=task;
     try {await task;} catch(error:any) {
+      if(error.name==='TimeoutError')throw new Error('ComfyUI did not respond within 15 seconds. Check the saved address and that ComfyUI is running.');
       if(error.status===0)throw new Error('Cannot reach ComfyUI. Check its address and restart it after updating Gallery. An HTTPS Hydrus Web page may require an HTTPS ComfyUI address.');
       if(error.status===404)throw new Error('This ComfyUI does not have the direct Gallery endpoint. Update ComfyUI-Gallery and restart ComfyUI.');
       throw error;

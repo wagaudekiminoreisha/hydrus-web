@@ -32,7 +32,7 @@ const assert=require('node:assert/strict');
   await page.getByLabel('ComfyUI address',{exact:true}).fill(gallery);
   await configureGallery({clear_access_key:true});
   await page.getByRole('button',{name:'Save & connect',exact:true}).click();
-  await page.getByRole('status').filter({hasText:'Save the Hydrus connection in Gallery first'}).waitFor();
+  await page.getByRole('alert').filter({hasText:'Save the Hydrus connection in Gallery first'}).waitFor();
   await configureGallery({access_key:'a'.repeat(64)});
   await page.getByText('Connected directly to ComfyUI Gallery',{exact:true}).waitFor({timeout:25000});
   assert.equal(await page.evaluate(()=>localStorage.getItem('hydrus-web-comfy-instance')),'11111111-1111-4111-8111-111111111111');
@@ -55,8 +55,11 @@ const assert=require('node:assert/strict');
    await page.getByRole('button',{name:'Up one folder',exact:true}).click();await page.getByRole('button',{name:'View study-1.png',exact:true}).waitFor();
   }
   await configureGallery({access_key:'b'.repeat(64)});
-  await page.goto(base+'/settings/comfyui');await page.getByRole('status').filter({hasText:'Hydrus API keys differ'}).waitFor();
+  await page.goto(base+'/settings/comfyui');await page.getByRole('alert').filter({hasText:'Hydrus API keys differ'}).waitFor();
   await configureGallery({access_key:'a'.repeat(64)});
+  await configureGallery({hydrus_web_enabled:false});
+  await page.goto(base+'/settings/comfyui');await page.getByRole('alert').filter({hasText:'connection is disabled in Gallery'}).waitFor();
+  await configureGallery({hydrus_web_enabled:true});
   await page.evaluate(()=>localStorage.setItem('hydrus-web-comfy-instance','different-installation'));
   await page.goto(base+'/settings/comfyui');
   await page.getByRole('button',{name:'Confirm replacement Gallery instance',exact:true}).waitFor();
@@ -71,7 +74,7 @@ const assert=require('node:assert/strict');
   assert.deepEqual(errors,[]);
   console.log('PASS real cross-origin handshake, automatic reconnect, image previews/originals, replacement confirmation, mobile layout and no Node bridge');
  }finally{
-  await configureGallery({access_key:'a'.repeat(64)}).catch(()=>{});
+  await configureGallery({access_key:'a'.repeat(64),hydrus_web_enabled:true}).catch(()=>{});
   await browser?.close();
   if(child&&child.exitCode===null){const stopped=new Promise(resolve=>child.once('exit',resolve));child.kill();await stopped;}
  }

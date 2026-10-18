@@ -11,9 +11,10 @@ import {SettingsService} from '../settings.service';
 export class IntegrationComponent implements OnDestroy {
   @Input() settingsOnly=false;
   get comfyBrowser(){return !this.settingsOnly;}
-  get connectionSummary(){return this.busy?'Connecting to ComfyUI…':this.connected?'Connected directly to ComfyUI Gallery':'ComfyUI is not connected';}
+  get connectionSummary(){return this.busy?(this.connected?'Loading output folder…':'Connecting to ComfyUI…'):this.connected?'Connected directly to ComfyUI Gallery':!this.integration.url?'ComfyUI address is not configured':'ComfyUI is not connected';}
   comfyUrl=this.integration.url;
-  connected=false;busy=false;status='';
+  connected=false;busy=false;connectionError='';
+  status=this.integration.url?'':'No ComfyUI address is saved. Open Settings → ComfyUI, enter its address, then choose Save & connect.';
   outputFolder='';outputFolders:{name:string;path:string}[]=[];outputOffset:number|null=null;outputTotal=0;
   assets:IntegrationAsset[]=[];order='date';hasMore=false;loadingMore=false;pageError='';searched=false;
   viewing?:IntegrationAsset;viewURL='';playing=false;
@@ -27,14 +28,14 @@ export class IntegrationComponent implements OnDestroy {
   }
   private async run(action:()=>Promise<void>){
     if(this.busy)return;this.busy=true;this.status='';
-    try{await action();}catch(error:any){this.status=error.error?.error||error.message||String(error);}finally{this.busy=false;}
+    try{await action();}catch(error:any){this.status=error.error?.error||error.message||String(error);if(!this.connected)this.connectionError=this.status;}finally{this.busy=false;}
   }
   async connect(confirmReplacement=false,save=true){
     await this.run(async()=>{
       this.connected=false;if(save)this.integration.setAddress(this.comfyUrl);
       await this.integration.connect(confirmReplacement);
       if(this.destroyed)return;
-      this.connected=true;this.status='Connected directly. No separate bridge process is required.';
+      this.connected=true;this.connectionError='';this.status='Connected directly. No separate bridge process is required.';
     });
     if(this.connected&&this.comfyBrowser)await this.search();
   }
