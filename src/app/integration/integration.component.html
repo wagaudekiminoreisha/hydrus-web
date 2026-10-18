@@ -1,6 +1,7 @@
 <section class="integration">
   <div *ngIf="comfyBrowser" class="browser-heading"><h1>ComfyUI</h1><a routerLink="/settings/comfyui">Connection settings</a></div>
   <h2 *ngIf="!comfyBrowser">ComfyUI connection</h2>
+  <p *ngIf="!comfyBrowser"><a routerLink="/comfyui">Browse output directory</a></p>
   <p class="connection-summary" aria-live="polite">{{connectionSummary}}</p>
   <p *ngIf="!comfyBrowser && integration.managed()">Your saved ComfyUI address and Hydrus connection establish the connection automatically.</p>
   <p *ngIf="!comfyBrowser && !integration.managed()">Connect an authenticated remote bridge, or start Hydrus Web locally with npm start for automatic setup.</p>
@@ -10,7 +11,7 @@
     <button (click)="connect()" [disabled]="busy">Connect</button>
     <button *ngIf="!comfyBrowser && integration.enabled()" (click)="integration.disable(); connected=false">Hide integration controls</button>
   </div>
-  <p role="status" aria-live="polite">{{busy ? 'Working…' : status}}</p>
+  <p role="status" aria-live="polite">{{busy ? (comfyBrowser ? 'Loading folder…' : 'Saving / loading settings…') : status}}</p>
   <section *ngIf="comfyBrowser && (!connected || !config.comfyUrl)" class="browser-empty">
     <h2>Connect your ComfyUI Gallery</h2>
     <p>Set up the connection in Settings to browse your images and videos here.</p>
@@ -21,56 +22,41 @@
       <label>ComfyUI address<input [(ngModel)]="config.comfyUrl" type="url" placeholder="http://127.0.0.1:8188"></label>
       <label>Hydrus API address<input [(ngModel)]="config.hydrusUrl" type="url"></label>
       <label>Hydrus API key<input [(ngModel)]="config.hydrusApiKey" type="password" placeholder="Leave blank to retain the saved key" autocomplete="off"></label>
-      <label>Tag service<select [(ngModel)]="config.tagServiceKey"><option value="">Choose a service</option><option *ngFor="let service of services" [value]="service.service_key">{{service.name}}</option></select></label>
+      <label>Tag service<select [(ngModel)]="config.tagServiceKey"><option value="">Choose a service</option><option *ngIf="savedServiceMissing" [value]="config.tagServiceKey">Saved tag service</option><option *ngFor="let service of services" [value]="service.service_key">{{service.name}}</option></select></label>
+      <button (click)="loadServices()" [disabled]="loadingServices">{{loadingServices ? 'Loading tag services…' : 'Refresh tag services'}}</button><span *ngIf="servicesError" role="alert">{{servicesError}}</span>
       <button (click)="configure()" [disabled]="busy">Save integration settings</button>
     </div></details>
     <details *ngIf="!comfyBrowser" open><summary>ComfyUI connection diagnostics</summary>
       <p *ngIf="!config.comfyUrl">Enter and save your ComfyUI address above, then check the connection.</p>
       <p *ngFor="let check of diagnostics?.checks"><strong>{{check.ok ? '✓' : '✗'}} {{check.name}}:</strong> {{check.message}}</p>
-      <button (click)="checkConnection()" [disabled]="busy || !config.comfyUrl">Check connection</button>
+      <p *ngIf="checking" role="status">Checking connection… You can still edit and save the settings.</p>
+      <button (click)="checkConnection()" [disabled]="checking || busy || !config.comfyUrl">{{checking ? 'Checking connection…' : 'Check connection'}}</button>
       <button *ngIf="config.comfyInstanceId && diagnostics?.instanceId && diagnostics?.instanceId !== config.comfyInstanceId" (click)="pairInstance()" [disabled]="busy">Confirm replacement Gallery instance</button>
     </details>
     <ng-container *ngIf="comfyBrowser && config.comfyUrl">
-    <h2>ComfyUI media</h2>
-    <div class="controls">
-      <label>Source<select aria-label="Source" [(ngModel)]="source" (change)="search()" [disabled]="busy"><option value="both">Hydrus + ComfyUI</option><option value="hydrus">Hydrus</option><option value="comfy">ComfyUI</option><option value="folder">Configured local folders</option></select></label>
-      <label>Tags<input [(ngModel)]="query" placeholder="Comma-separated search tags" (keydown.enter)="search()"></label>
-      <label>Prefix / lineage<select aria-label="Prefix / lineage" [(ngModel)]="prefixId" (change)="search()" [disabled]="busy"><option value="">All media</option><option *ngFor="let prefix of prefixes" [value]="prefix.id">{{prefix.name}}</option></select></label>
-      <label>Order<select aria-label="Order" [(ngModel)]="order" (change)="sort()" [disabled]="busy"><option value="date">Newest</option><option value="name">Name</option><option value="random">Random</option></select></label>
-      <button (click)="search()" [disabled]="busy">Search / refresh metadata</button>
-      <button *ngIf="order==='random'" (click)="sort()" [disabled]="busy">Reshuffle</button>
-    </div>
-    <div class="controls">
-      <label><input type="checkbox" [(ngModel)]="inherit"> Inherit prompt tags on export</label>
-      <label>Additional tags<input [(ngModel)]="extraTags" placeholder="tag, namespace:tag"></label>
-      <button (click)="transfer('export')" [disabled]="busy||!selected.size">Export selection to Hydrus</button>
-      <button (click)="syncMetadata()" [disabled]="busy||!selected.size">Sync prompts / tags to Hydrus</button>
-      <button (click)="transfer('import')" [disabled]="busy||!selected.size">Copy selection to ComfyUI input</button>
-      <button (click)="selected.clear()" [disabled]="!selected.size">Clear selection ({{selected.size}})</button>
-    </div>
-    <div class="media-grid"><article *ngFor="let asset of assets; trackBy: trackAsset" [class.selected]="selected.has(asset.id)" integrationVisible (visible)="loadThumbnail(asset)">
-      <label class="pick"><input type="checkbox" [checked]="selected.has(asset.id)" (change)="toggle(asset)" [attr.aria-label]="'Select '+asset.name"> {{asset.source}}</label>
-      <button class="preview" (click)="open(asset)" [attr.aria-label]="'View '+asset.name"><img *ngIf="asset.thumbnail" [src]="asset.thumbnail" loading="lazy" decoding="async" alt="" (error)="status='Thumbnail unavailable for '+asset.name+'. Check ComfyUI connection diagnostics.'"><span *ngIf="!asset.thumbnail">{{isVideo(asset) ? '▶' : '◇'}}</span><span>{{asset.name}}</span></button>
-      <small *ngIf="asset.depth!==undefined">{{asset.depth===0 ? 'Paired source' : 'Generation '+asset.depth}}</small>
-    </article></div>
-    <div class="load-more" integrationVisible [integrationVisibleOnce]="false" [integrationVisibleEnabled]="hasMore && !busy && !loadingMore && !viewing && !pageError" (visible)="loadMore()">
-      <p *ngIf="loadingMore" role="status">Loading more media…</p>
-      <p *ngIf="pageError" role="alert">{{pageError}}</p>
-      <button *ngIf="hasMore" (click)="loadMore()" [disabled]="busy || loadingMore">{{pageError ? 'Retry loading more' : 'Load more'}}</button>
-      <p *ngIf="searched && !hasMore && !loadingMore">{{assets.length ? 'All matching media loaded.' : 'No matching media found.'}}</p>
-    </div>
-    <details><summary>Manage selected Hydrus tags, parents &amp; aliases</summary>
-      <div class="controls"><label>Action<select [(ngModel)]="tagOperation"><option value="add">Add tags</option><option value="remove">Remove tags</option><option value="replace">Replace tags</option></select></label>
-      <label>Tags to add / remove / replace<input [(ngModel)]="extraTags" placeholder="tag, namespace:tag"></label><label *ngIf="tagOperation==='replace'">Replacement tag<input [(ngModel)]="replacement"></label><button (click)="syncTags()" [disabled]="busy||!selected.size">Apply tags to selected Hydrus files</button></div>
-      <div class="controls"><label>Parent / alias lookup<input [(ngModel)]="relationshipTag"></label><button (click)="lookupRelationships()" [disabled]="busy||!relationshipTag">Look up relationships</button></div>
-      <p>Parents and aliases are readable through the Hydrus API. Edit their definitions in the main Hydrus client; its public API does not expose those edits.</p>
-      <article *ngFor="let relationship of relationships"><h3>{{relationship.service}}</h3><p><strong>Preferred tag:</strong> {{relationship.ideal_tag}}</p><p><strong>Aliases:</strong> {{relationship.siblings?.join(', ') || 'None'}}</p><p><strong>Parents:</strong> {{relationship.ancestors?.join(', ') || 'None'}}</p><p><strong>Children:</strong> {{relationship.descendants?.join(', ') || 'None'}}</p></article>
-      <p *ngIf="relationships && !relationships.length">No relationships found.</p>
-    </details>
+      <h2>Output directory</h2>
+      <div class="controls">
+        <button *ngIf="outputFolder" (click)="browseFolder(parentFolder())" [disabled]="busy">Up one folder</button>
+        <button (click)="browseFolder('')" [disabled]="busy">Output root</button>
+        <span aria-label="Current output folder">{{outputFolder || '/'}}</span>
+        <label>Order<select aria-label="Order" [(ngModel)]="order" (change)="search()" [disabled]="busy"><option value="date">Newest</option><option value="name">Name</option></select></label>
+        <button (click)="search()" [disabled]="busy">Refresh folder</button>
+      </div>
+      <div class="folder-grid"><button *ngFor="let folder of outputFolders" (click)="browseFolder(folder.path)" [disabled]="busy" [attr.aria-label]="'Open folder '+folder.name">📁 {{folder.name}}</button></div>
+      <div class="media-grid"><article *ngFor="let asset of assets; trackBy: trackAsset" integrationVisible (visible)="loadThumbnail(asset)">
+        <button class="preview" (click)="open(asset)" [attr.aria-label]="'View '+asset.name"><img *ngIf="asset.thumbnail" [src]="asset.thumbnail" loading="lazy" decoding="async" alt=""><span *ngIf="!asset.thumbnail">{{isVideo(asset) ? '▶' : '◇'}}</span><span>{{asset.name}}</span></button>
+      </article></div>
+      <div class="load-more" integrationVisible [integrationVisibleOnce]="false" [integrationVisibleEnabled]="hasMore && !busy && !loadingMore && !viewing && !pageError" (visible)="loadMore()">
+        <p *ngIf="loadingMore" role="status">Loading more files…</p>
+        <p *ngIf="pageError" role="alert">{{pageError}}</p>
+        <button *ngIf="hasMore" (click)="loadMore()" [disabled]="busy || loadingMore">{{pageError ? 'Retry loading more' : 'Load more'}}</button>
+        <p *ngIf="searched && !hasMore && !loadingMore && !assets.length && !outputFolders.length">This folder is empty.</p>
+      </div>
     </ng-container>
     <details *ngIf="!comfyBrowser"><summary>Automatic import folders</summary><p>Paths are on the computer running the bridge. The bridge must stay running for scheduled imports. Scans retain originals and skip symlinks.</p>
       <div class="controls"><label>Directory<input [(ngModel)]="folder.path" placeholder="Absolute folder path"></label><label>Tags<input [(ngModel)]="folder.tags" placeholder="tag, namespace:tag"></label>
       <label>Inherited tag prefix<input [(ngModel)]="folder.tagPrefix" placeholder="Optional text before inherited tags"></label><label>Associate with prefix<select [(ngModel)]="folder.prefixId"><option value="">None</option><option *ngFor="let prefix of prefixes" [value]="prefix.id">{{prefix.name}}</option></select></label>
+      <button (click)="loadPrefixes()" [disabled]="loadingPrefixes">Refresh prefixes</button><span *ngIf="prefixesError" role="alert">{{prefixesError}}</span>
       <label>Scan interval (seconds)<input type="number" min="10" max="86400" [(ngModel)]="folder.intervalSeconds"></label></div>
       <div class="controls"><label><input type="checkbox" [(ngModel)]="folder.enabled"> Automatically import this directory</label><label><input type="checkbox" [(ngModel)]="folder.recursive"> Include subfolders</label><label><input type="checkbox" [(ngModel)]="folder.inheritPrompts"> Inherit PNG prompts</label><label><input type="checkbox" [(ngModel)]="folder.archive"> Archive imported files</label>
       <button (click)="addFolder()" [disabled]="busy||!folder.path">Add import folder</button><button (click)="scan()" [disabled]="busy">Scan now</button></div>
@@ -84,7 +70,6 @@
     <img *ngIf="viewURL && isImage(viewing)" [src]="viewURL" [alt]="viewing.name" (load)="loaded()">
     <video #media *ngIf="viewURL && isVideo(viewing)" [src]="viewURL" controls playsinline [autoplay]="playing || settings.appSettings.mediaAutoplay" [muted]="settings.appSettings.mediaDefaultMuted" [loop]="!playing&&settings.appSettings.mediaLoop" (ended)="ended()"></video>
     <audio #media *ngIf="viewURL && !isImage(viewing)&&!isVideo(viewing)" [src]="viewURL" controls [autoplay]="playing || settings.appSettings.mediaAutoplay" [loop]="!playing&&settings.appSettings.mediaLoop" (ended)="ended()"></audio>
-    <div><p><strong>Positive prompt:</strong> {{viewing.prompts?.positive?.join(', ') || '—'}}</p><p><strong>Negative prompt:</strong> {{viewing.prompts?.negative?.join(', ') || '—'}}</p><p><strong>Tags:</strong> {{viewing.tags?.join(', ') || '—'}}</p></div>
-    <details><summary>Metadata · {{viewing.name}}</summary><pre>{{viewing.metadata|json}}</pre><p>{{viewing.tags?.join(', ')}}</p></details>
+    <p>{{viewing.name}}</p>
   </div>
 </section>

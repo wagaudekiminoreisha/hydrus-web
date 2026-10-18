@@ -155,7 +155,7 @@ export class IntegrationStore {
   async diagnostics() {
     const checks=[];let identity;
     try { identity=await this.comfyIdentity();checks.push({name:'Gallery instance',ok:true,message:identity.instanceId}); }
-    catch(error){checks.push({name:'Gallery instance',ok:false,message:error.message});}
+    catch(error){checks.push({name:'Gallery instance',ok:false,message:error.message});return {checks,pairedInstanceId:this.config.comfyInstanceId};}
     if(identity && !this.config.comfyInstanceId) {
       try{await this.handshake();checks.push({name:'Automatic handshake',ok:true,message:'Gallery and Hydrus Web verified their saved Hydrus connection.'});}
       catch(error){checks.push({name:'Automatic handshake',ok:false,message:error.message});}
@@ -163,19 +163,18 @@ export class IntegrationStore {
     checks.push({name:'Transfer pairing',ok:!!identity&&identity.instanceId===this.config.comfyInstanceId,message:identity&&identity.instanceId===this.config.comfyInstanceId?'Connected automatically':this.config.comfyInstanceId?'Instance changed. Confirm the intended replacement.':'Waiting for Gallery and Hydrus Web to have the same Hydrus API key configured.'});
     if(identity?.mediaRootMatches===false)checks.push({name:'Gallery media root',ok:false,message:'Gallery catalogue and static media roots differ. Start the Gallery monitor for the configured folder in ComfyUI.'});
     try {
-      const settings=await(await this.comfy('/Gallery/settings')).json();
-      const data=await(await this.comfy('/Gallery/images?relative_path='+encodeURIComponent(settings.relativePath||'./'))).json();
-      const files=Object.values(data.folders||{}).flatMap(folder=>Object.values(folder)).filter(file=>['image','media'].includes(file.type));
-      checks.push({name:'Gallery catalogue',ok:true,message:files.length+' files'});
-      if(files.length) {
-        const response=await this.comfy(files[0].url,undefined,{headers:{Range:'bytes=0-0'}});
+      const data=await(await this.comfy('/Gallery/output-directory?limit=1')).json();
+      checks.push({name:'Output directory',ok:true,message:(data.total||0)+' items at the output root'});
+      const file=(data.items||[]).find(item=>item.kind==='file');
+      if(file?.url?.startsWith('/Gallery/output-file?')) {
+        const response=await this.comfy(file.url,undefined,{headers:{Range:'bytes=0-0'}});
         await response.body?.cancel();
-        checks.push({name:'Media access',ok:true,message:files[0].name||files[0].url});
-      } else checks.push({name:'Media access',ok:false,message:'No files available to verify. Check the Gallery folder setting.'});
+        checks.push({name:'Media access',ok:true,message:file.name});
+      } else checks.push({name:'Media access',ok:true,message:'Output directory is reachable; open a subfolder to browse its files.'});
     } catch(error){checks.push({name:'Gallery / media access',ok:false,message:error.message});}
     return {checks,instanceId:identity?.instanceId,pairedInstanceId:this.config.comfyInstanceId};
   }
-  async comfy(endpoint,body,options={}) {if(!this.config.comfyUrl)throw new Error('Configure the ComfyUI address.');const response=await this.fetcher(this.config.comfyUrl+endpoint,{method:body===undefined?'GET':'POST',redirect:'error',headers:{...(body===undefined?{}:{'Content-Type':'application/json'}),...(this.config.comfyInstanceId?{'X-Gallery-Instance':this.config.comfyInstanceId}:{}),...options.headers},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(30000)});if(!response.ok)throw new Error(`ComfyUI ${endpoint}: HTTP ${response.status}`);return response;}
+  async comfy(endpoint,body,options={}) {if(!this.config.comfyUrl)throw new Error('Configure the ComfyUI address.');const response=await this.fetcher(this.config.comfyUrl+endpoint,{method:body===undefined?'GET':'POST',redirect:'error',headers:{...(body===undefined?{}:{'Content-Type':'application/json'}),...(this.config.comfyInstanceId?{'X-Gallery-Instance':this.config.comfyInstanceId}:{}),...options.headers},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(30000)});if(!response.ok){if(response.status===404&&endpoint.startsWith('/Gallery/output-directory'))throw new Error('Update ComfyUI-Gallery on the remote ComfyUI server and restart ComfyUI to enable output-folder browsing.');throw new Error(`ComfyUI ${endpoint}: HTTP ${response.status}`);}return response;}
   async addFolder(input) {
     if(typeof input.path!=='string'||!path.isAbsolute(input.path))throw new Error('Choose an absolute folder path on the bridge computer.');
     const folder=await fs.realpath(input.path);if(!(await fs.stat(folder)).isDirectory())throw new Error('The import path is not a directory.');
@@ -218,6 +217,22 @@ export class IntegrationStore {
     }await this.save('config.json',this.config);}finally{this.scanning=false;}
   }
   registerAsset(entry,internal) {const id=entry.id||randomUUID();this.assets.set(id,{...entry,...internal});return {...entry,id,prompts:promptsAndLinks(entry.metadata)};}
+  async outputDirectory({folder='',offset=0,limit=48,order='date'}={}) {
+    if(typeof folder!=='string'||folder.length>4096||folder.includes('\\')||folder.split('/').some(part=>part==='..'||part.startsWith('.')||part.includes(':')))throw new Error('Invalid output folder.');
+    const identity=await this.comfyIdentity();
+    if(this.config.comfyInstanceId&&identity.instanceId!==this.config.comfyInstanceId)throw new Error('Gallery instance changed. Confirm the replacement in Settings.');
+    const params=new URLSearchParams({path:folder,offset:String(Math.max(0,Math.floor(Number(offset)||0))),limit:String(Math.max(1,Math.min(200,Math.floor(Number(limit)||48)))),order:order==='name'?'name':'date'});
+    const response=await this.comfy('/Gallery/output-directory?'+params,undefined,{headers:{'X-Gallery-Instance':identity.instanceId}});
+    const data=await response.json(),folders=[],entries=[];
+    for(const item of data.items||[]) {
+      if(item.kind==='folder'){folders.push({name:item.name,path:item.path});continue;}
+      // Only the dedicated output-file/thumbnail endpoints may enter this browser's media proxy.
+      if(!item.url?.startsWith('/Gallery/output-file?')||!item.thumbnailUrl?.startsWith('/Gallery/output-thumbnail?'))continue;
+      entries.push(this.registerAsset({id:'output:'+identity.instanceId+':'+item.path,source:'comfy',name:item.name,url:item.url,mime:item.mime||'',timestamp:item.timestamp||0},
+        {outputInstanceId:identity.instanceId,outputThumbnail:item.thumbnailUrl}));
+    }
+    return {folder,folders,entries,total:data.total||0,nextOffset:data.nextOffset??null};
+  }
   // A cursor refers to a stable search, not a new scan of a changing directory.
   async search({source='both',tags=[],prefixId='',limit=48,order='date',cursor}={}) {
     if(cursor)return this.searchPage(cursor);
@@ -356,6 +371,7 @@ export class IntegrationStore {
   }
   async media(id,thumbnail=false,range) {
     const asset=this.assets.get(id);if(!asset)throw new Error('Search again to load this media.');
+    if(asset.outputInstanceId)return this.comfy(thumbnail?asset.outputThumbnail:asset.url,undefined,{headers:{'X-Gallery-Instance':asset.outputInstanceId,...(range?{Range:range}:{})}});
     if(asset.source==='hydrus')return this.hydrus(thumbnail?'/get_files/thumbnail':'/get_files/file',undefined,{hash:asset.hash},{headers:range?{Range:range}:{}});
     if(asset.source==='comfy')return this.comfy(thumbnail?'/Gallery/thumbnail?url='+encodeURIComponent(asset.url)+'&root='+encodeURIComponent(asset.root||this.comfyRoot||'./'):asset.url,undefined,{headers:range?{Range:range}:{}});
     if(asset.source==='folder') {

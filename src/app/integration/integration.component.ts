@@ -14,11 +14,16 @@ export class IntegrationComponent implements OnDestroy {
   get connectionSummary() {
     if(!this.connected)return this.busy?'Checking connection…':'Connection unavailable';
     if(!this.config.comfyUrl)return 'ComfyUI is not configured';
+    if(this.comfyBrowser)return this.busy?'Loading output folder…':this.searched?'Connected to ComfyUI output':'Output folder has not loaded';
+    if(this.checking)return 'Checking ComfyUI connection…';
     if(!this.diagnostics)return 'ComfyUI connection has not been verified';
     const checks=this.diagnostics.checks;
     return checks?.length&&checks.every(check=>check.ok)?'Connected to ComfyUI Gallery':'ComfyUI connection needs attention';
   }
   bridgeUrl=this.integration.url;token=this.integration.token;connected=false;busy=false;status='';
+  checking=false;loadingServices=false;loadingPrefixes=false;servicesError='';prefixesError='';
+  private connectionRevision=0;
+  outputFolder='';outputFolders:{name:string;path:string}[]=[];outputOffset:number|null=null;outputTotal=0;
   config:any={comfyUrl:'',hydrusUrl:this.api.hydrusApiUrl()||'http://127.0.0.1:45869',hydrusApiKey:this.api.hydrusApiKey()||'',tagServiceKey:''};
   diagnostics?:{checks:{name:string;ok:boolean;message:string}[];instanceId?:string;pairedInstanceId?:string};
   private handshakeTimer?:ReturnType<typeof setInterval>;
@@ -38,19 +43,35 @@ export class IntegrationComponent implements OnDestroy {
   @ViewChild('media') media?:ElementRef<HTMLMediaElement>;
   constructor(public integration:IntegrationService,private api:HydrusApiSettingsService,public settings:SettingsService) {
     void integration.ready.then(()=>{if(this.destroyed)return;this.bridgeUrl=integration.url;this.token=integration.token;if(integration.managed()||this.token)void this.connect();});
-    this.handshakeTimer=setInterval(()=>{if(this.connected&&this.config.comfyUrl&&!this.config.comfyInstanceId&&!this.busy&&!this.handshaking)void this.retryHandshake();},15000);
+    this.handshakeTimer=setInterval(()=>{if(this.connected&&this.config.comfyUrl&&!this.config.comfyInstanceId&&!this.busy&&!this.checking&&!this.handshaking)void this.retryHandshake();},15000);
   }
   private async retryHandshake() {
     this.handshaking=true;
-    try{const saved=await this.integration.request('/handshake',{});if(this.destroyed)return;this.config={...saved,hydrusApiKey:''};await this.checkConnection();this.status='Gallery connected automatically using the saved Hydrus connection.';if(this.comfyBrowser)await this.search();}
+    const revision=this.connectionRevision;
+    try{const saved=await this.integration.request('/handshake',{});if(this.destroyed||revision!==this.connectionRevision)return;this.config={...this.config,comfyInstanceId:saved.comfyInstanceId};if(!this.comfyBrowser)await this.checkConnection();this.status='Gallery connected automatically using the saved Hydrus connection.';}
     catch{/* The visible diagnostics explain initial setup; saving Gallery's connection is picked up on the next attempt. */}
     finally{this.handshaking=false;}
   }
   private async run(action:()=>Promise<void>) {if(this.busy)return;this.busy=true;this.status='';try{await action();}catch(error:any){this.status=error.error?.error||error.message||String(error);}finally{this.busy=false;}}
-  async connect() {await this.run(async()=>{this.integration.url=this.bridgeUrl.replace(/\/$/,'');this.integration.token=this.token;this.connected=false;await this.integration.request('/health');let config=await this.integration.request('/config');if(this.integration.managed()&&!config.hasHydrusKey&&this.api.hydrusApiKey())config=await this.integration.request('/config',{hydrusUrl:new URL(this.api.hydrusApiUrl()||'http://127.0.0.1:45869',location.origin).href,hydrusApiKey:this.api.hydrusApiKey()});if(!this.integration.managed())this.integration.saveConnection(this.bridgeUrl,this.token);this.config={...config,hydrusApiKey:config.hasHydrusKey?'':this.config.hydrusApiKey};this.folders=config.folders||[];this.connected=true;if(config.comfyUrl)await this.checkConnection();this.status=config.comfyUrl?'Connection loaded. Check the verification results in Settings.':'Enter your ComfyUI address in Settings to connect.';if(!this.comfyBrowser)await this.loadServices();});if(this.comfyBrowser&&this.connected){if(this.config.comfyUrl)await this.search();else this.status='Open Settings > ComfyUI to configure the connection.';}}
+  async connect() {
+    await this.run(async()=>{
+      this.connectionRevision++;this.checking=false;this.diagnostics=undefined;
+      this.integration.url=this.bridgeUrl.replace(/\/$/,'');this.integration.token=this.token;this.connected=false;
+      await this.integration.request('/health',undefined,undefined,5000);
+      let config=await this.integration.request('/config',undefined,undefined,5000);
+      if(this.integration.managed()&&!config.hasHydrusKey&&this.api.hydrusApiKey())config=await this.integration.request('/config',{hydrusUrl:new URL(this.api.hydrusApiUrl()||'http://127.0.0.1:45869',location.origin).href,hydrusApiKey:this.api.hydrusApiKey()});
+      if(!this.integration.managed())this.integration.saveConnection(this.bridgeUrl,this.token);
+      this.config={...config,hydrusApiKey:config.hasHydrusKey?'':this.config.hydrusApiKey};this.folders=config.folders||[];this.connected=true;
+      this.status=config.comfyUrl?'Connection settings loaded.':'Enter your ComfyUI address in Settings to connect.';
+    });
+    if(this.connected&&this.config.comfyUrl){if(this.comfyBrowser)await this.search();else void this.checkConnection();}
+  }
   async checkConnection() {
-    try { const diagnostics=await this.integration.request('/diagnostics');if(this.destroyed)return;this.diagnostics=diagnostics;if(diagnostics.pairedInstanceId)this.config.comfyInstanceId=diagnostics.pairedInstanceId; }
-    catch(error:any){this.diagnostics={checks:[{name:'Connection diagnostics',ok:false,message:error.error?.error||error.message}]};}
+    if(this.checking)return;
+    const revision=this.connectionRevision;this.checking=true;
+    try { const diagnostics=await this.integration.request('/diagnostics');if(this.destroyed||revision!==this.connectionRevision)return;this.diagnostics=diagnostics;if(diagnostics.pairedInstanceId)this.config.comfyInstanceId=diagnostics.pairedInstanceId; }
+    catch(error:any){if(!this.destroyed&&revision===this.connectionRevision)this.diagnostics={checks:[{name:'Connection diagnostics',ok:false,message:error.error?.error||error.message}]};}
+    finally{if(revision===this.connectionRevision)this.checking=false;}
   }
   pairInstance() {return this.run(async()=>{
     if(!this.diagnostics?.instanceId)throw new Error('Check the connection first.');
@@ -59,18 +80,26 @@ export class IntegrationComponent implements OnDestroy {
     this.assets=[];this.selected.clear();this.hasMore=false;this.cursor=null;
   });}
   async loadServices() {
-    try{const response=await this.integration.request('/tags',{operation:'services'});this.services=Object.values(response.services||response).flatMap((value:any)=>Array.isArray(value)?value:[value]).filter((service:any)=>[0,5].includes(service.type));}catch{/* A new connection may not have its Hydrus key yet. */}
-    if(!this.comfyBrowser&&this.config.comfyUrl)try{const page=await this.integration.request<IntegrationPage>('/search',{source:'comfy',limit:1});if(!this.destroyed)this.prefixes=page.prefixes||[];}catch{/* Folder setup remains available while Gallery is offline. */}
+    if(this.loadingServices)return;this.loadingServices=true;this.servicesError='';const revision=this.connectionRevision;
+    try{const response=await this.integration.request('/tags',{operation:'services'},undefined,10000);if(revision!==this.connectionRevision)return;this.services=Object.values(response.services||response).flatMap((value:any)=>Array.isArray(value)?value:[value]).filter((service:any)=>[0,5].includes(service.type));}
+    catch(error:any){if(revision===this.connectionRevision)this.servicesError=error.error?.error||error.message;}
+    finally{this.loadingServices=false;}
   }
-  configure() {return this.run(async()=>{const {folders,...config}=this.config;const saved=await this.integration.request('/config',config);this.config={...saved,hydrusApiKey:''};await this.loadServices();await this.checkConnection();this.status=this.config.comfyInstanceId?'Gallery connection established.':'Settings saved. Complete the Hydrus connection in Gallery; the handshake retries automatically.';});}
+  get savedServiceMissing(){return this.config.tagServiceKey&&!this.services.some(service=>service.service_key===this.config.tagServiceKey);}
+  async loadPrefixes(){if(this.loadingPrefixes)return;this.loadingPrefixes=true;this.prefixesError='';try{const result=await this.integration.request<any>('/prefixes');this.prefixes=result.prefixes||[];}catch(error:any){this.prefixesError=error.error?.error||error.message;}finally{this.loadingPrefixes=false;}}
+  async configure() {
+    let saved=false;this.connectionRevision++;this.checking=false;this.diagnostics=undefined;
+    await this.run(async()=>{const {folders,...config}=this.config;const result=await this.integration.request('/config',config);this.config={...result,hydrusApiKey:''};saved=true;this.status='Settings saved. You can continue editing while the connection is checked.';});
+    if(saved)void this.checkConnection();
+  }
   search() {return this.run(async()=>{
     const revision=++this.searchRevision;
     this.closeViewer();this.releaseThumbnails();this.thumbnailRequests.clear();
     this.assets=[];this.selected.clear();this.cursor=null;this.hasMore=false;this.loadingMore=false;this.pagePromise=undefined;this.pageError='';this.warnings=[];this.searched=false;
-    this.endpoint=this.source==='folder'?'/local':'/search';
-    const result=await this.integration.request<IntegrationPage>(this.endpoint,{source:this.source,tags:this.split(this.query),prefixId:this.prefixId,order:this.order,limit:48});
+    const result=await this.integration.request<any>('/output',{folder:this.outputFolder,offset:0,order:this.order,limit:48});
     if(this.destroyed||revision!==this.searchRevision)return;
-    this.appendPage(result);this.searched=true;
+    this.outputFolders=result.folders||[];this.outputOffset=result.nextOffset??null;this.outputTotal=result.total||0;
+    this.assets=result.entries;this.hasMore=this.outputOffset!==null;this.searched=true;this.status=`${this.outputTotal} items`;
   });}
   private appendPage(result:IntegrationPage) {
     const known=new Set(this.assets.map(asset=>asset.id));
@@ -81,6 +110,7 @@ export class IntegrationComponent implements OnDestroy {
     this.status=[`${this.assets.length} files loaded`,...this.warnings].join(' · ');
   }
   loadMore():Promise<boolean> {
+    if(this.comfyBrowser)return this.loadMoreOutput();
     if(this.pagePromise)return this.pagePromise;
     if(!this.cursor||this.busy||this.destroyed)return Promise.resolve(false);
     const revision=this.searchRevision,cursor=this.cursor,endpoint=this.endpoint;
@@ -94,6 +124,15 @@ export class IntegrationComponent implements OnDestroy {
       finally {if(revision===this.searchRevision){this.loadingMore=false;this.pagePromise=undefined;}}
     })();
     this.pagePromise=task;return task;
+  }
+  async browseFolder(folder:string){this.outputFolder=folder;return this.search();}
+  parentFolder(){return this.outputFolder.split('/').slice(0,-1).join('/');}
+  private async loadMoreOutput():Promise<boolean>{
+    if(this.loadingMore||this.outputOffset===null||this.busy)return false;
+    const revision=this.searchRevision;this.loadingMore=true;this.pageError='';
+    try{const result=await this.integration.request<any>('/output',{folder:this.outputFolder,offset:this.outputOffset,order:this.order,limit:48});if(revision!==this.searchRevision)return false;this.assets=[...this.assets,...result.entries];this.outputFolders=[...this.outputFolders,...result.folders];this.outputOffset=result.nextOffset??null;this.hasMore=this.outputOffset!==null;return true;}
+    catch(error:any){if(revision===this.searchRevision)this.pageError=error.error?.error||error.message;return false;}
+    finally{if(revision===this.searchRevision)this.loadingMore=false;}
   }
   async loadThumbnail(asset:IntegrationAsset) {
     if(asset.thumbnail||this.thumbnailRequests.has(asset.id)||(asset.source==='folder'&&!this.isImage(asset)))return;

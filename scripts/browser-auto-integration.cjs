@@ -46,7 +46,7 @@ const assert=require('node:assert/strict');
   assert(page.url().endsWith('/settings/comfyui'));
   assert.equal(await page.getByRole('link',{name:'Open ComfyUI media browser',exact:true}).count(),0);
   await page.getByRole('button',{name:'Toggle sidenav',exact:true}).click();
-  assert.equal(await page.getByRole('link',{name:'ComfyUI',exact:true}).count(),0);
+  assert.equal(await page.getByRole('link',{name:'ComfyUI output',exact:true}).count(),1);
   await page.locator('.mat-drawer-backdrop').click();
   await page.getByRole('tab',{name:'ComfyUI',exact:true,selected:true}).waitFor();
   await page.getByLabel('ComfyUI address',{exact:true}).waitFor();
