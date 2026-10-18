@@ -14,3 +14,23 @@ button {cursor:pointer;touch-action:manipulation;}button:disabled {opacity:.5;}b
 .preview>span:first-child {display:grid;place-items:center;min-height:160px;}.load-more {min-height:64px;text-align:center;padding:16px;}
 .integration-viewer {position:fixed;inset:0;z-index:5000;background:#151515;color:white;display:flex;flex-direction:column;padding:env(safe-area-inset-top) max(12px,env(safe-area-inset-right)) env(safe-area-inset-bottom) max(12px,env(safe-area-inset-left));overflow:auto;}.viewer-toolbar {display:flex;flex-wrap:wrap;gap:8px;padding:12px 0;}.integration-viewer>img,.integration-viewer>video {width:100%;min-height:0;flex:1;object-fit:contain;max-height:75vh;}.integration-viewer>audio {margin:40px 0;}
 @media(max-width:600px){.controls>label,.controls>button {width:100%;}input:not([type=checkbox]) {width:100%;}.media-grid {grid-template-columns:repeat(2,minmax(0,1fr));}.integration {padding:12px;}.viewer-toolbar button {flex:1;}}
+
+.source-tabs .active {border-color:#a79aff;background:#7561bb44;box-shadow:inset 0 -2px #b3a1ff;}
+select option {color:#eee;background:#25252b;}
+.check {flex-direction:row;align-items:center;}
+.relation-controls {padding:12px;border:1px solid #a79aff66;border-radius:12px;margin-bottom:16px;}
+.chips {display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;user-select:text;}
+.chips span {border:1px solid #a79aff77;background:#7561bb22;border-radius:20px;padding:5px 10px;overflow-wrap:anywhere;}
+.source-badge {display:block;text-transform:capitalize;opacity:.8;padding:4px;}
+
+.browser-heading h1 {font-size:clamp(1.8rem,4vw,2.8rem);line-height:1.15;margin:8px 0;}
+@media(max-width:600px){
+  .source-tabs {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;}
+  .source-tabs>button {font-size:12px;padding:8px 4px;}
+}
+
+@media(max-width:600px){
+  .search-controls {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));}
+  .search-controls>label:first-child,.search-controls>button[type=button] {grid-column:1 / -1;}
+  .search-controls select {min-width:0;width:100%;}
+}

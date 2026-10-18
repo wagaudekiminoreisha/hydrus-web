@@ -12,7 +12,7 @@ bootstrap. The Gallery browser tab need not be open; ComfyUI itself must be runn
 4. In Hydrus Web's **Settings → ComfyUI**, enter ComfyUI's normal HTTP(S) address,
    for example `http://127.0.0.1:8188` on the same computer, or its LAN/Tailscale address.
    Choose **Save & connect**. No `/Gallery` suffix or bridge token is needed.
-5. Open **ComfyUI output** to browse folders and media.
+5. Open **ComfyUI media** to browse folders, local files, Hydrus or the Hybrid view.
 
 The connection is hosted inside ComfyUI; the toggle does not start another process or open another port.
 
@@ -61,11 +61,47 @@ build, restart its server and hard-refresh the browser/PWA to load the new files
 This direct connection also works from other static deployments when their browser
 can reach ComfyUI.
 
-The current ComfyUI entry remains an output-folder browser. Hydrus search/export/tag
-controls remain deferred. The old Node import-folder scheduler and its saved rules
-are retained in source/data for compatibility, but normal app launch no longer
-starts that scheduler and its bridge-only configuration is removed from the UI.
-Gallery's own Hydrus features remain available in Gallery.
+## Hybrid viewing and prefix/provenance controls
+
+**Output folders** keeps the shallow remote output-directory browser. **Local** searches
+all nonarchived media below ComfyUI output. **Hydrus** browses the saved Hydrus API
+connection independently. **Hybrid** merges local and Hydrus copies by SHA-256,
+keeps local playback and adds the matching Hydrus tags and portable generation notes.
+Switching source tabs clears selection; opening the viewer retains it.
+
+Search accepts comma-separated exact tags, `-excluded tag` and `@prefix name`.
+Multiple prefix tokens are AND requirements. Local prompt tags come from positive
+conditioning and the encoder's saved resolved choices, never the unchosen alternatives.
+Choose a named prefix or snapshot to narrow loaded results. More media and metadata
+load as the scroll sentinel becomes visible, in pages of at most 100; filtered views
+continue scanning even if an early page has no matches. Counts show the loaded subset,
+not an assertion that the whole collection has been indexed.
+
+Drop an image onto the browser, use **Find by image**, or choose **Related images**
+on a card to match its content hash. **Related images** starts with lineage: the image, its ancestors, and generations from
+it or its source images. The result controls can additionally show snapshot membership
+or **Other prefix associations**. Other prefix associations subtract that entire source
+family from prefix results. These checks use content hashes, Gallery source manifests,
+the shared prefix library, and `gallery_associations` in Hydrus generation notes.
+Older exports without portable associations still resolve if their hashes are in the
+connected Gallery library. Full remote relationships can emerge as further pages load.
+
+Select images to save or remove their direct prefix pairings. This updates Gallery's
+user-scoped library with a revision check, without editing prompt recipes, snapshots or
+historical generation metadata. A stale library produces a conflict; search again to
+reload it. Existing snapshot and inherited provenance references remain visible after
+removing a direct pairing. Pairing changes are not automatically written back to old
+Hydrus generation notes; Gallery's existing export/metadata sync performs that transfer.
+
+The scoped authenticated `/library`, `/catalogue`, and `/association` routes run inside
+ComfyUI. Catalogue paging snapshots its path list for ten minutes and binds it to the
+session, so new generations do not shift the remaining pages. Paths are confined to
+output; hidden directories, symlinks/junctions, physical `_archive` and user-scoped
+virtual archive membership are excluded. Metadata and hashes are read one page at a time.
+No separate bridge process is required. Update Gallery Python files and restart ComfyUI.
+
+Hydrus export/tag tools and the old Node import-folder scheduler are not exposed in
+this browser. Their compatibility code and existing data remain in source.
 
 Validation: production Angular build; real Python Gallery endpoint in a cross-origin
 Chrome check covering delayed Gallery setup, mismatched keys, session renewal,
@@ -80,3 +116,5 @@ visible error in Settings. A Gallery installation before commit `d82aa5a` has no
 direct endpoint: its ordinary Gallery can work while Hydrus Web cannot connect.
 Update the actual `ComfyUI/custom_nodes/ComfyUI-Gallery` checkout and restart ComfyUI;
 updating the development checkout alone does not update that installation.
+
+Hybrid validation: `node --test scripts/media-relations.test.cjs`, the Gallery direct-connection Python tests, and `scripts/browser-hybrid-gallery.cjs` against the isolated Gallery/Hydrus fixture.
