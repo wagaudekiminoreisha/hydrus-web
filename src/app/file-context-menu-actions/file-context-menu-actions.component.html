@@ -1,3 +1,14 @@
+@if(comfy$ | async; as comfy){
+  @if(comfy.capabilities.available){
+    <button mat-menu-item (click)="related('lineage')"><mat-icon>account_tree</mat-icon><span>Find source / lineage images</span></button>
+    @if(comfy.capabilities.prefixes.size){<button mat-menu-item (click)="related('prefix')"><mat-icon>collections</mat-icon><span>Find other prefix associations</span></button>}
+    @if(comfy.capabilities.snapshots.size){<button mat-menu-item (click)="related('snapshot')"><mat-icon>history</mat-icon><span>Find snapshot associations</span></button>}
+    @if(comfy.capabilities.tags.length){<button mat-menu-item (click)="copy(comfy.capabilities.tags.join(', '))"><mat-icon>content_copy</mat-icon><span>Copy resolved positive tags</span></button>}
+    @if(comfy.capabilities.workflow){<button mat-menu-item (click)="copyWorkflow(comfy.capabilities.workflow)"><mat-icon>schema</mat-icon><span>Copy ComfyUI workflow</span></button>}
+    @if(comfy.capabilities.generation){<button mat-menu-item (click)="generationDetails(comfy.asset.metadata)"><mat-icon>data_object</mat-icon><span>ComfyUI generation details</span></button>}
+    <mat-divider></mat-divider>
+  }
+}
 <a mat-menu-item rel="noopener noreferrer" target="_blank" href="{{file().file_url}}">
   <mat-icon>open_in_new</mat-icon>
   <span>Open in New Tab</span>

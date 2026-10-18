@@ -21,7 +21,7 @@ export class HybridSearchService {
   private generation=0;
   constructor(private gallery:IntegrationService,private api:HydrusApiService,private native:NativeGalleryService,private browser:HybridBrowserService,private files:HydrusFilesService,private selections:SelectionGroupsService){}
   setEnabled(enabled:boolean){if(!enabled)this.related.set(undefined);this.enabled.set(enabled);localStorage.setItem('hydrus-web-browse-hybrid',String(enabled));}
-  async findRelated(file:HydrusBasicFile){const full=file.gallery_local?this.files.getGalleryFile(file.hash,file.file_id):await firstValueFrom(this.files.getFileByHash(file.hash));this.related.set({id:'related:'+file.hash,source:file.gallery_local?'comfy':'hydrus',name:file.gallery_name||file.hash.slice(0,12),hash:file.hash,metadata:metadataOf(full)});this.scopeLineage=true;this.scopeSnapshot=false;this.scopePrefix=false;this.setEnabled(true);}
+  async findRelated(file:HydrusBasicFile){const full=file.gallery_local?this.files.getGalleryFile(file.hash,file.file_id):await firstValueFrom(this.files.getFileByHash(file.hash).pipe(timeout(15000)));this.related.set({id:file.gallery_path||'related:'+file.hash,source:file.gallery_local||file.gallery_path?'comfy':'hydrus',name:file.gallery_name||file.hash.slice(0,12),hash:file.hash,metadata:{...metadataOf({notes:full?.notes}),...file.gallery_metadata}});this.scopeLineage=true;this.scopeSnapshot=false;this.scopePrefix=false;this.setEnabled(true);}
   search(tags:HydrusSearchTags,remote:(tags:HydrusSearchTags)=>Promise<number[]>):Observable<number[]>{
     return new Observable(subscriber=>{
       const generation=++this.generation;let cancelled=false,emitted=false;this.loading.set(true);this.warning.set('');

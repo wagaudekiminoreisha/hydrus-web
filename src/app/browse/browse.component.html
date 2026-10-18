@@ -15,7 +15,7 @@
   @if(hybrid.related(); as related){<section class="hybrid-related" aria-label="Related image search"><strong>Related to {{related.name}}</strong><mat-checkbox [(ngModel)]="hybrid.scopeLineage" (change)="refresh()">Lineage · same source / generated from</mat-checkbox><mat-checkbox [(ngModel)]="hybrid.scopeSnapshot" (change)="refresh()">Snapshot associations</mat-checkbox><mat-checkbox [(ngModel)]="hybrid.scopePrefix" (change)="refresh()">Other prefix associations</mat-checkbox><button mat-button (click)="clearRelated()">Clear related search</button></section>}
   <ng-container *rxLet="currentSearch$ as search">
     @if (search.length > 0) {
-      <app-image-list-loader [fileIDs]="search" [galleryActions]="hybrid.enabled() ? galleryActions : []" class="app-image-list"></app-image-list-loader>
+      <app-image-list-loader [fileIDs]="search" class="app-image-list"></app-image-list-loader>
     }
     @if (search.length === 0 && (searching$ | push) === false) {
       <div>

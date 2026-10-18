@@ -25,7 +25,6 @@ export class IntegrationComponent implements OnDestroy {
   status=this.integration.url?'':'No ComfyUI address is saved. Open Settings → ComfyUI, enter its address, then choose Save & connect.';
   outputFolder='';outputFolders:{name:string;path:string}[]=[];outputOffset:number|null=null;outputTotal=0;
   nativeFiles:HydrusBasicFile[]=[];nativeIDs:number[]=[];preparingNative=false;private nativeRevision=0;
-  nativeActions=[{label:'Related images',icon:'account_tree',run:(file:HydrusBasicFile)=>{const asset=this.assets.find(row=>row.hash===file.hash);if(asset)void this.findRelated(asset);}}];
   assets:IntegrationAsset[]=[];order='date';hasMore=false;loadingMore=false;pageError='';searched=false;
   mode='folder';query='';prefixId='';snapshotId='';library:any={prefixes:[],snapshots:{}};
   associationPrefixId='';libraryRevision='';selected=new Set<string>();related?:IntegrationAsset;scopeLineage=true;scopeSnapshot=false;scopePrefix=false;

@@ -37,12 +37,12 @@ export function actualTags(asset:MediaRecord):string[] {
 export function links(asset:MediaRecord,library:any={}) {
   const meta=metadataOf(asset.metadata), parents=new Set<string>(),prefixes=new Set<string>(),snapshots=new Set<string>();
   const addRef=(ref:any)=>{if(ref?.prefix_id)prefixes.add(ref.prefix_id);if(ref?.snapshot_id)snapshots.add(ref.snapshot_id);};
-  for(const ref of meta.gallery_associations||[])addRef(ref);
-  for(const row of Object.values(objectValue(meta.gallery_prompts)) as any[])for(const ref of row.prefix_snapshots||[])addRef(ref);
+  for(const ref of Array.isArray(meta.gallery_associations)?meta.gallery_associations:[])addRef(ref);
+  for(const row of Object.values(objectValue(meta.gallery_prompts)) as any[])for(const ref of Array.isArray(row?.prefix_snapshots)?row.prefix_snapshots:[])addRef(ref);
   const manifests:any[]=[];
-  for(const node of Object.values(objectValue(meta.prompt)) as any[])if(node.class_type==='GalleryImageSource')manifests.push(objectValue(node.inputs?.sources));
-  if(!manifests.length)for(const node of objectValue(meta.workflow).nodes||[])if(node.type==='GalleryImageSource')manifests.push(objectValue(node.widgets_values?.[0]));
-  for(const manifest of manifests){const images=manifest.images||[],used=manifest.layout==='single'?images.slice(manifest.active_index||0,(manifest.active_index||0)+1):images;
+  for(const node of Object.values(objectValue(meta.prompt)) as any[])if(node?.class_type==='GalleryImageSource')manifests.push(objectValue(node.inputs?.sources));
+  if(!manifests.length)for(const node of (Array.isArray(objectValue(meta.workflow).nodes)?objectValue(meta.workflow).nodes:[]))if(node.type==='GalleryImageSource')manifests.push(objectValue(node.widgets_values?.[0]));
+  for(const manifest of manifests){const images=Array.isArray(manifest.images)?manifest.images:[],used=manifest.layout==='single'?images.slice(manifest.active_index||0,(manifest.active_index||0)+1):images;
     for(const image of used){const hash=/[a-f0-9]{64}/i.exec(image.input_name||'')?.[0]||image.metadata?.hydrus?.hash;if(hash)parents.add(hash.toLowerCase());if(image.metadata?.gallery_prefix?.id)prefixes.add(image.metadata.gallery_prefix.id);}}
   const keys=new Set([asset.hash?'sha256:'+asset.hash:'',asset.source==='comfy'?'local:./:/static_gallery/'+asset.id:'']);
   const matches=(key:string,ref:any)=>keys.has(key)||!!asset.hash&&ref?.hash===asset.hash||asset.source==='comfy'&&ref?.local_url==='/static_gallery/'+asset.id;
@@ -64,8 +64,9 @@ export function relationIndex(assets:MediaRecord[],library:any) {
   return index;
 }
 export function relatedSets(assets:MediaRecord[],seed:MediaRecord,library:any) {
-  seed=assets.find(row=>seed.hash&&row.hash===seed.hash)||seed;
-  const rows=[...assets,seed],index=relationIndex(rows,library),seedLinks=index.get(seed.id)!;
+  const known=assets.find(row=>seed.hash&&row.hash===seed.hash);
+  if(known)seed={...known,...seed,id:known.id,metadata:{...metadataOf(known.metadata),...metadataOf(seed.metadata)}};
+  const rows=[...assets.filter(row=>row.id!==seed.id),seed],index=relationIndex(rows,library),seedLinks=index.get(seed.id)!;
   const ancestors=new Set<string>(seed.hash?[seed.hash]:[]);seedLinks.parents.forEach(hash=>ancestors.add(hash));
   let changed=true;
   while(changed){changed=false;for(const row of rows)if(row.hash&&ancestors.has(row.hash))for(const parent of index.get(row.id)!.parents)if(!ancestors.has(parent)){ancestors.add(parent);changed=true;}}
@@ -84,4 +85,14 @@ export function mergeCopies(rows:MediaRecord[]):MediaRecord[] {
     const local=previous.source==='comfy'?previous:row;
     result.set(key,{...local,metadata:{...metadataOf(previous.metadata),...metadataOf(row.metadata)},tags:[...new Set([...(previous.tags||[]),...(row.tags||[])])],locations:[...new Set([...(previous.locations||[]),row.source])]});}
   return [...result.values()];
+}
+
+/** File menu capabilities come from generation metadata, never ordinary Hydrus tags. */
+export function comfyCapabilities(asset:MediaRecord,local=false,library:any={}) {
+  const meta=metadataOf(asset.metadata),workflow=objectValue(meta.workflow),prompt=objectValue(meta.prompt);
+  const generation=Object.keys(prompt).length>0||Object.keys(workflow).length>0||Object.keys(objectValue(meta.gallery_prompts)).length>0||typeof meta.positive_prompt==='string'||typeof meta.positive==='string';
+  let relation={parents:new Set<string>(),prefixes:new Set<string>(),snapshots:new Set<string>()};
+  try{relation=relationIndex([asset],library).get(asset.id)!;}catch{/* Damaged metadata must not break native file actions. */}
+  let tags:string[]=[];try{tags=actualTags(asset);}catch{/* Malformed generation data remains inspectable. */}
+  return {available:local||generation||relation.parents.size>0||relation.prefixes.size>0||relation.snapshots.size>0,generation,workflow:Object.keys(workflow).length?workflow:undefined,tags,...relation};
 }

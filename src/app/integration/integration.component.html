@@ -55,7 +55,7 @@
         <div class="controls"><label>Associate with prefix<select aria-label="Associate with prefix" [(ngModel)]="associationPrefixId"><option value="">Choose prefix</option><option *ngFor="let prefix of library.prefixes" [value]="prefix.id">{{prefix.name}}</option></select></label><button (click)="associate('associate')" [disabled]="busy || !associationPrefixId">Save pairing</button><button (click)="associate('dissociate')" [disabled]="busy">Remove direct pairing</button><button (click)="clearNativeSelection()">Clear selection</button></div>
       </details>
       <p *ngIf="preparingNative" role="status">Preparing gallery…</p>
-      <app-image-list-loader [fileIDs]="nativeIDs" [providedFiles]="nativeFiles" [moreAvailable]="hasMore" [galleryActions]="nativeActions" [providedMore]="nativeLoadMore" (loadMore)="loadMore()" (gallerySelection)="nativeSelection($event)"></app-image-list-loader>
+      <app-image-list-loader [fileIDs]="nativeIDs" [providedFiles]="nativeFiles" [moreAvailable]="hasMore" [providedMore]="nativeLoadMore" (loadMore)="loadMore()" (gallerySelection)="nativeSelection($event)"></app-image-list-loader>
       <div class="load-more" integrationVisible [integrationVisibleOnce]="false" [integrationVisibleEnabled]="hasMore && !busy && !loadingMore && !pageError" (visible)="loadMore()">
         <p *ngIf="loadingMore" role="status">Loading more files…</p>
         <p *ngIf="pageError" role="alert">{{pageError}}</p>

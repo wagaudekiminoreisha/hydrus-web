@@ -148,6 +148,8 @@ export interface HydrusFile extends HydrusFileFromAPI, HydrusBasicFile {
 
 export interface HydrusBasicFile extends HydrusBasicFileFromAPI {
   gallery_local?: boolean;
+  gallery_path?: string;
+  gallery_metadata?: Record<string, unknown>;
   gallery_name?: string;
   resolve_media?: ()=>Promise<void>;
   file_url: string;

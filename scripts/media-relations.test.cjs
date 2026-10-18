@@ -44,3 +44,28 @@ test('older image-source text and replacement mode retain only supplied positive
   const metadata={prompt:{'1':{class_type:'GalleryImageSource',inputs:{sources:JSON.stringify({layout:'single',active_index:0,images:[{prompt:{positive:'blue eyes',negative:'blur'}}]})}},'2':{class_type:'GalleryPromptEncode',inputs:{source_mode:'replace',text:'unused hair',source_text:['1',4]}},'3':{class_type:'KSampler',inputs:{positive:['2',0]}}}};
   assert.deepEqual(actualTags({id:'old',source:'comfy',name:'old',metadata}),['blue eyes']);
 });
+
+const {comfyCapabilities}=compiled.exports;
+test('ordinary Hydrus tags and unrelated notes do not enable ComfyUI actions',()=>{
+ assert.equal(comfyCapabilities({id:'h',source:'hydrus',name:'h',tags:['blue hair'],metadata:{notes:{other:'hello'}}}).available,false);
+});
+test('local media exposes lineage without claiming workflow or prefix metadata',()=>{
+ const c=comfyCapabilities({id:'local.png',source:'comfy',name:'local',metadata:{}},true);
+ assert(c.available);assert(!c.generation);assert(!c.workflow);assert.equal(c.prefixes.size,0);assert.equal(c.snapshots.size,0);
+});
+test('portable Hydrus generation data enables only supported actions',()=>{
+ const c=comfyCapabilities({id:'h',source:'hydrus',name:'h',metadata:{notes:{'ComfyUI Gallery generation metadata':JSON.stringify({positive_prompt:'blue eyes',workflow:{nodes:[]},gallery_associations:[{prefix_id:'p',snapshot_id:'s'}]})}}});
+ assert(c.available);assert(c.generation);assert(c.workflow);assert(c.prefixes.has('p'));assert(c.snapshots.has('s'));assert.deepEqual(c.tags,['blue eyes']);
+});
+test('malformed association data neither breaks menus nor enables unrelated actions',()=>{
+ assert.equal(comfyCapabilities({id:'h',source:'hydrus',name:'h',metadata:{gallery_associations:{invalid:true},workflow:{nodes:'broken'}}}).prefixes.size,0);
+ assert.equal(comfyCapabilities({id:'h',source:'hydrus',name:'h',metadata:{notes:{'ComfyUI Gallery generation metadata':'{broken'}}}).available,false);
+});
+
+test('Hydrus seed provenance is retained when the local copy has older metadata',()=>{
+ const rows=[row('a'),row('b'),row('e')];
+ const seed={...row('b',['a']),id:'hydrus:b',source:'hydrus'};
+ const result=relatedSets(rows,seed,library);
+ assert.deepEqual([...result.lineage].sort(),['a.png','b.png']);
+ assert.deepEqual([...result.prefixes],['e.png']);
+});

@@ -31,7 +31,7 @@
       </button>
       <mat-divider></mat-divider>
       <div (click)="close()">
-        <app-file-context-menu-actions [file]="state.file"></app-file-context-menu-actions>
+        <app-file-context-menu-actions [file]="state.file" (leaveViewer)="state.closeGallery()"></app-file-context-menu-actions>
       </div>
     </div>
   </div>

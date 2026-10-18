@@ -148,3 +148,6 @@ updating the development checkout alone does not update that installation.
 Hybrid validation: `node --test scripts/media-relations.test.cjs`, the Gallery direct-connection Python tests, and `scripts/browser-hybrid-gallery.cjs` against the isolated Gallery/Hydrus fixture.
 
 Native integration validation: `scripts/browser-native-hybrid.cjs` uses the Gallery fixture with `GALLERY_NATIVE_QA=1` and `GALLERY_DIRECT_QA=1`. It verifies the regular search menu, prefix/provenance scopes, local-only media, native viewer and selection safety, plus page-boundary navigation.
+
+
+Hydrus Web file menus now offer ComfyUI-specific actions on both the regular thumbnail grid and the slideshow: source/lineage search, other prefix associations (excluding the source family), snapshot associations, copying resolved positive tags or workflow JSON, and a generation-details dialog. Each action requires the corresponding metadata; ordinary Hydrus media keeps the normal file menu. Local output files are recognized directly, while Hydrus copies use their portable ComfyUI Gallery generation notes. Prefix-library enrichment is optional and does not delay basic generation actions when ComfyUI is offline. Related searches open in the regular Browse menu with hybrid search enabled and the chosen scope selected. These changes are entirely in Hydrus Web; no Gallery update is required.

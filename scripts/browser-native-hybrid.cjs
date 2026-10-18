@@ -15,10 +15,23 @@ const {spawn}=require('node:child_process');const path=require('node:path');cons
   let library=await fixture(gallery+'/Gallery/prefixes');library=await fixture(gallery+'/Gallery/prefixes',{action:'save',revision:library.revision,name:'Native QA',terms:['blue eyes']});
   const prefix=library.library.prefixes.find(row=>row.name==='Native QA');
   await fixture(gallery+'/Gallery/prefixes',{action:'associate',revision:library.revision,prefix_id:prefix.id,image_keys:['sha256:'+h1,'sha256:'+hl],image_refs:{['sha256:'+h1]:{hash:h1},['sha256:'+hl]:{hash:hl}}});
-  await fixture('http://127.0.0.1:45870/add_notes/set_notes',{hash:h2,notes:{'ComfyUI Gallery generation metadata':JSON.stringify({prompt:{'92':{class_type:'KSampler',inputs:{positive:['17',0]}},'17':{class_type:'CLIPTextEncode',inputs:{text:'autumn forest'}},'source':{class_type:'GalleryImageSource',inputs:{sources:JSON.stringify({layout:'single',images:[{input_name:h1+'.png'}]})}}}})}},{'Hydrus-Client-API-Access-Key':'a'.repeat(64)});
+  await fixture('http://127.0.0.1:45870/add_notes/set_notes',{hash:h2,notes:{'ComfyUI Gallery generation metadata':JSON.stringify({workflow:{nodes:[]},gallery_associations:[{prefix_id:prefix.id,snapshot_id:'qa-snapshot'}],prompt:{'92':{class_type:'KSampler',inputs:{positive:['17',0]}},'17':{class_type:'CLIPTextEncode',inputs:{text:'autumn forest'}},'source':{class_type:'GalleryImageSource',inputs:{sources:JSON.stringify({layout:'single',images:[{input_name:h1+'.png'}]})}}}})}},{'Hydrus-Client-API-Access-Key':'a'.repeat(64)});
+  await fixture('http://127.0.0.1:45870/add_notes/set_notes',{hash:h1,notes:{'ComfyUI Gallery generation metadata':'{}'}},{'Hydrus-Client-API-Access-Key':'a'.repeat(64)});
   await page.goto(base+'/');
   await page.waitForFunction(()=>document.querySelectorAll('.image-list-link').length===4);
   assert.equal(await page.locator('.gallery-source').count(),0,'ordinary search stays Hydrus-only');
+  await page.getByRole('link',{name:h1,exact:true}).click({button:'right'});
+  await page.getByRole('menuitem',{name:'Archive',exact:true}).waitFor();
+  assert.equal(await page.getByRole('menuitem',{name:'Find source / lineage images',exact:true}).count(),0,'plain Hydrus has no Comfy actions');
+  await page.keyboard.press('Escape');
+  await page.getByRole('link',{name:h2,exact:true}).click({button:'right'});
+  await page.getByRole('menuitem',{name:'Find snapshot associations',exact:true}).waitFor();
+  await page.getByRole('menuitem',{name:'Copy ComfyUI workflow',exact:true}).waitFor();
+  await page.getByRole('menuitem',{name:'Copy resolved positive tags',exact:true}).waitFor();
+  await page.getByRole('menuitem',{name:'ComfyUI generation details',exact:true}).click();
+  await page.getByRole('heading',{name:'ComfyUI generation details',exact:true}).waitFor();
+  assert(await page.locator('mat-dialog-content').innerText().then(text=>text.includes('GalleryImageSource')));
+  await page.getByRole('button',{name:'Close',exact:true}).click();
   await page.getByRole('button',{name:'Search Options',exact:true}).click();
   await page.getByRole('menuitem',{name:'Include ComfyUI results'}).click();
   await page.waitForFunction(()=>document.querySelectorAll('.image-list-link').length===5);
@@ -27,6 +40,12 @@ const {spawn}=require('node:child_process');const path=require('node:path');cons
   const input=page.locator('app-tag-input input').first();await input.fill('local only tag');await input.press('Enter');await page.getByRole('button',{name:'Search',exact:true}).click();
   await page.waitForFunction(()=>document.querySelectorAll('.image-list-link').length===1);
   const local=page.getByRole('link',{name:'local-only.png',exact:true});await local.waitFor();
+  await local.click();await page.locator('.pswp--open').waitFor();
+  await page.locator('.pswp__img').last().click({button:'right'});
+  await page.getByRole('menuitem',{name:'Find source / lineage images',exact:true}).waitFor();
+  await page.getByRole('menuitem',{name:'Find other prefix associations',exact:true}).waitFor();
+  assert.equal(await page.getByRole('menuitem',{name:'Find snapshot associations',exact:true}).count(),0);
+  await page.keyboard.press('Escape');await page.locator('.pswp--open').waitFor({state:'detached'});
   await local.click();await page.locator('.pswp--open').waitFor();
   assert.equal(await page.locator('.pswp__button--arrow--next').count(),1);
   assert.equal(await page.locator('.integration-viewer').count(),0,'native PhotoSwipe replaced the test viewer');
@@ -38,9 +57,16 @@ const {spawn}=require('node:child_process');const path=require('node:path');cons
   await page.keyboard.press('Escape');
   await page.goto(base+'/?tags='+encodeURIComponent(JSON.stringify(['@Native QA'])));
   await page.waitForFunction(()=>document.querySelectorAll('.image-list-link').length===3);
-  await page.getByRole('link',{name:h1,exact:true}).click({button:'right'});await page.getByRole('menuitem',{name:'Related images',exact:true}).click();
+  await page.getByRole('link',{name:h2,exact:true}).click({button:'right'});await page.getByRole('menuitem',{name:'Find source / lineage images',exact:true}).click();
   await page.waitForFunction(()=>document.querySelectorAll('.image-list-link').length===2);
-  await page.getByRole('checkbox',{name:'Lineage · same source / generated from'}).uncheck();await page.getByRole('checkbox',{name:'Other prefix associations'}).check();
+  await page.getByRole('link',{name:h2,exact:true}).click({button:'right'});
+  await page.getByRole('menuitem',{name:'Find snapshot associations',exact:true}).click();
+  await page.waitForFunction(()=>document.querySelectorAll('.image-list-link').length===1);
+  assert(await page.getByRole('checkbox',{name:'Snapshot associations',exact:true}).isChecked());
+  assert(!(await page.getByRole('checkbox',{name:'Lineage · same source / generated from'}).isChecked()));
+  await page.getByRole('link',{name:h2,exact:true}).click({button:'right'});
+  await page.getByRole('menuitem',{name:'Find other prefix associations',exact:true}).click();
+  await page.getByRole('checkbox',{name:'Other prefix associations',exact:true}).check();
   await page.waitForFunction(()=>document.querySelectorAll('.image-list-link').length===1);
   await page.getByRole('link',{name:'local-only.png',exact:true}).waitFor();
   await page.goto(base+'/');await page.waitForFunction(()=>document.querySelectorAll('.image-list-link').length===5);
@@ -66,7 +92,7 @@ const {spawn}=require('node:child_process');const path=require('node:path');cons
   await page.screenshot({path:path.join(__dirname,'../.work/qa-native-hybrid.png'),fullPage:true});
   assert(!requests.some(request=>request.url().includes('file_ids=')&&decodeURIComponent(request.url()).match(/file_ids=\[[^\]]*-/)),'local IDs never reach Hydrus');
   assert.deepEqual(errors,[]);
-  console.log('PASS regular Browse opt-in hybrid search, local-only exact tags, prefix and lineage scopes, hash deduplication, shared PhotoSwipe/slideshow, file info, selection controls and safe local actions');
+  console.log('PASS conditional ComfyUI context actions in thumbnail/slideshow menus, generation details, snapshot/prefix/lineage actions; regular Browse opt-in hybrid search, local-only exact tags, prefix and lineage scopes, hash deduplication, shared PhotoSwipe/slideshow, file info, selection controls and safe local actions');
  }catch(error){console.error('Fixture output pages:',requests.filter(request=>request.url().endsWith('/hydrus-web/output')&&request.method()==='POST').map(request=>request.postDataJSON()));console.error('Browser status:',await page?.locator('.integration [role=status]').allTextContents());await page?.screenshot({path:path.join(__dirname,'../.work/qa-native-failure.png'),fullPage:true}).catch(()=>{});throw error;}
  finally{await browser?.close();if(child&&child.exitCode===null){const stopped=new Promise(resolve=>child.once('exit',resolve));child.kill();await stopped;}}
 })().catch(error=>{console.error(error);process.exitCode=1;});
