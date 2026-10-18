@@ -1,3 +1,5 @@
+import {HydrusBasicFile} from '../hydrus-file';
+import {HybridSearchService} from '../integration/hybrid-search.service';
 import { Component, OnInit, AfterViewInit, ChangeDetectionStrategy, OnDestroy } from '@angular/core';
 import { combineLatest, firstValueFrom, map } from 'rxjs';
 import { UntilDestroy } from '@ngneat/until-destroy';
@@ -27,7 +29,8 @@ export class BrowseComponent implements OnInit, AfterViewInit, OnDestroy {
     private dialog: MatDialog,
     private hydrusServices: HydrusServicesService,
     private browseState: BrowseStateService,
-    private selectionGroups: SelectionGroupsService
+    private selectionGroups: SelectionGroupsService,
+    public hybrid:HybridSearchService
     ) {
   }
 
@@ -85,6 +88,11 @@ export class BrowseComponent implements OnInit, AfterViewInit, OnDestroy {
     this.sort$.next(sort);
     this.browseState.refreshIfStarted();
   }
+
+  galleryActions=[{label:'Related images',icon:'account_tree',run:(file:HydrusBasicFile)=>void this.relatedSearch(file)}];
+  async relatedSearch(file:HydrusBasicFile){await this.hybrid.findRelated(file);this.tagsFormControl.setValue([]);this.refresh();}
+  clearRelated(){this.hybrid.related.set(undefined);this.refresh();}
+  toggleHybrid(){this.hybrid.setEnabled(!this.hybrid.enabled());this.refresh();}
 
   refresh() {
     this.browseState.refresh();

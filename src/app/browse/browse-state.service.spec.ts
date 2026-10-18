@@ -1,3 +1,4 @@
+import {HybridSearchService} from '../integration/hybrid-search.service';
 import { of } from 'rxjs';
 import { ErrorService } from '../error.service';
 import { SearchService } from '../search.service';
@@ -37,7 +38,7 @@ describe('BrowseStateService', () => {
       }]
     } as unknown as SelectionGroupsService;
 
-    state = new BrowseStateService(searchService, settingsService, errorService, localStorage, selectionGroups);
+    state = new BrowseStateService(searchService, settingsService, errorService, localStorage, selectionGroups, {enabled:()=>false} as unknown as HybridSearchService);
   });
 
   it('replays a completed search without running it again when Browse resubscribes', () => {

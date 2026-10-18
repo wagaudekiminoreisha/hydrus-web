@@ -68,6 +68,7 @@ export class HydrusFileDownloadService {
   }
 
   private async saveFileToBrowserDownloads(hfile: HydrusBasicFile) {
+    if(hfile.gallery_local){saveAs(await firstValueFrom(this.filesService.getFileAsFile(hfile)),hfile.gallery_name);return;}
     const hydrusVersion = await firstValueFrom(this.hydrusVersionService.hydrusVersion$);
     if (hydrusVersion.hydrus_version < 532) {
       const snackBarRef = this.snackbar.open('Downloading file...');

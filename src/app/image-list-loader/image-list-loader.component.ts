@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy, OnChanges, input, signal, computed } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, OnChanges, input, signal, computed, output, effect } from '@angular/core';
 import { HydrusFilesService } from '../hydrus-files.service';
 import { HydrusBasicFile } from '../hydrus-file';
 import { IPageInfo } from '@iharbeck/ngx-virtual-scroller';
@@ -15,7 +15,7 @@ import { union } from 'set-utilities';
 import { HydrusVersionService } from '../hydrus-version.service';
 import { HydrusFileDownloadService } from '../hydrus-file-download.service';
 import { MatMenuTrigger } from '@angular/material/menu';
-import { SelectionGroup, SelectionGroupsService } from '../selection-groups.service';
+import { GENERIC_SELECTION_GROUP_ID, SelectionGroup, SelectionGroupsService } from '../selection-groups.service';
 import { SelectionGroupDialogComponent } from '../selection-group-dialog/selection-group-dialog.component';
 
 @Component({
@@ -33,6 +33,13 @@ export class ImageListLoaderComponent implements OnInit, OnChanges {
   //@Input() loadAtOnce = 256;
 
   loadAtOnce = input(256);
+  galleryActions=input<{label:string;icon:string;run:(file:HydrusBasicFile)=>void}[]>([]);
+  gallerySelection=output<Set<number>>();
+  providedMore=input<(()=>Promise<HydrusBasicFile[]>)|undefined>();
+  providedFiles = input<HydrusBasicFile[]|null>(null);
+  moreAvailable = input(false);
+  loadMore = output<void>();
+  hasLocalSelection = computed(()=>Array.from(this.selected()).some(id=>id<0));
 
   //loading = false;
 
@@ -72,31 +79,38 @@ export class ImageListLoaderComponent implements OnInit, OnChanges {
 
   }
 
+  private reportSelection=effect(()=>{this.providedFiles();this.gallerySelection.emit(this.selected());});
   ngOnInit(): void {
 
   }
 
+  private metadataRevision=0;
   ngOnChanges() {
+    this.metadataRevision++;this.loading.set(false);
+    if(this.providedFiles()!==null){this.currentFiles.set(this.providedFiles()!);return;}
     this.currentFiles.set([]);
     this.fetchMore();
   }
 
   listScrollEnd(event: IPageInfo) {
+    if(this.providedFiles()!==null){if(this.moreAvailable())this.loadMore.emit();return;}
     if (!((event.endIndex + 1 >= this.fileIDs().length) || this.loading())) {
       this.fetchMore();
     }
   }
 
-  fetchMore() {
-    this.loading.set(true);
-    this.filesService.getFileMetadata(
-      this.fileIDs().slice(this.currentFiles().length, this.currentFiles().length + this.loadAtOnce())
-    ).subscribe((files) => {
-      this.currentFiles.set(this.currentFiles().concat(files));
-      this.loading.set(false);
-    });
+  async fetchMore() {
+    if(this.loading())return;
+    const revision=this.metadataRevision;this.loading.set(true);
+    try{const files=await firstValueFrom(this.filesService.getFileMetadata(this.fileIDs().slice(this.currentFiles().length,this.currentFiles().length+this.loadAtOnce())));
+      if(revision===this.metadataRevision)this.currentFiles.set(this.currentFiles().concat(files));
+    }catch(error){if(revision===this.metadataRevision)this.errorService.handleHydrusError(error);}
+    finally{if(revision===this.metadataRevision)this.loading.set(false);}
   }
+  viewerMore=async()=>{if(this.providedFiles()!==null){return await this.providedMore()?.()||this.currentFiles();}await this.fetchMore();return this.currentFiles();};
+  viewerHasMore=()=>this.providedFiles()!==null?this.moreAvailable():this.currentFiles().length<this.fileIDs().length;
 
+  resetViewSelection(){this.selectionMode.set(false);this.selectionGroups.setActiveGroup(GENERIC_SELECTION_GROUP_ID);this.selectionGroups.setActiveFiles(new Set());}
   deselectAll() {
     this.selectionGroups.setActiveFiles(new Set())
     this.selectionMode.set(false)

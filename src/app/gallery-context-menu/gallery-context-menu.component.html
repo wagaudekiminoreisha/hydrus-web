@@ -25,7 +25,7 @@
         <mat-icon>info_outlined</mat-icon>
         <span>File Info</span>
       </button>
-      <button mat-menu-item (click)="openFileInfo(state, true)">
+      <button mat-menu-item [disabled]="state.file.gallery_local" (click)="openFileInfo(state, true)">
         <mat-icon>sell</mat-icon>
         <span>Manage Tags</span>
       </button>

@@ -7,6 +7,7 @@
         <a
           class="image-list-link"
           [href]="file.file_url"
+          [attr.aria-label]="file.gallery_name || file.hash"
           [draggable]="false"
           (pointerdown)="selectionPointerDown($event, file)"
           (pointerup)="finishTouch($event)" (pointercancel)="finishTouch($event)" (pointermove)="cancelMovedTouch($event)"
@@ -51,10 +52,11 @@
       <mat-icon>info_outlined</mat-icon>
       <span>File Info</span>
     </button>
-    <button mat-menu-item (click)="fileInfo(file, true)">
+    <button mat-menu-item [disabled]="file.gallery_local" (click)="fileInfo(file, true)">
       <mat-icon>sell</mat-icon>
       <span>Manage Tags</span>
     </button>
+    @for(action of galleryActions(); track action.label){<button mat-menu-item (click)="action.run(file)"><mat-icon>{{action.icon}}</mat-icon><span>{{action.label}}</span></button>}
     <mat-divider></mat-divider>
     <app-file-context-menu-actions [file]="file"></app-file-context-menu-actions>
   </ng-template>

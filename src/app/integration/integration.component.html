@@ -13,7 +13,7 @@
     <p>Use the address reachable from this browser. For ComfyUI on another computer, enter that computer’s network address.</p>
     <a routerLink="/comfyui">Browse output directory</a>
   </ng-container>
-  <p *ngIf="integration.url">Saved ComfyUI address: {{integration.url}}</p>
+  <p *ngIf="integration.url && !comfyBrowser">Saved ComfyUI address: {{integration.url}}</p>
   <p *ngIf="connectionError" role="alert">{{connectionError}}</p>
   <p role="status" aria-live="polite">{{status === connectionError ? '' : status}}</p>
   <section *ngIf="comfyBrowser && !connected && mode!=='hydrus'" class="browser-empty"><p>Set your ComfyUI address in Settings and configure Gallery’s Hydrus connection to browse output files.</p><a routerLink="/settings/comfyui">Open ComfyUI settings</a></section>
@@ -42,8 +42,7 @@
         </div>
       </ng-container>
       <ng-container *ngIf="mode==='folder'">
-      <h2>Output directory</h2>
-      <div class="controls">
+      <div class="controls folder-controls">
         <button *ngIf="outputFolder" (click)="browseFolder(parentFolder())" [disabled]="busy">Up one folder</button>
         <button (click)="browseFolder('')" [disabled]="busy">Output root</button>
         <span aria-label="Current output folder">{{outputFolder || '/'}}</span>
@@ -53,16 +52,11 @@
       <div class="folder-grid"><button *ngFor="let folder of outputFolders" (click)="browseFolder(folder.path)" [disabled]="busy" [attr.aria-label]="'Open folder '+folder.name">📁 {{folder.name}}</button></div>
       </ng-container>
       <details *ngIf="mode!=='folder' && selected.size"><summary>Prefix associations · {{selected.size}} selected</summary>
-        <div class="controls"><label>Associate with prefix<select aria-label="Associate with prefix" [(ngModel)]="associationPrefixId"><option value="">Choose prefix</option><option *ngFor="let prefix of library.prefixes" [value]="prefix.id">{{prefix.name}}</option></select></label><button (click)="associate('associate')" [disabled]="busy || !associationPrefixId">Save pairing</button><button (click)="associate('dissociate')" [disabled]="busy">Remove direct pairing</button><button (click)="selected.clear()">Clear selection</button></div>
+        <div class="controls"><label>Associate with prefix<select aria-label="Associate with prefix" [(ngModel)]="associationPrefixId"><option value="">Choose prefix</option><option *ngFor="let prefix of library.prefixes" [value]="prefix.id">{{prefix.name}}</option></select></label><button (click)="associate('associate')" [disabled]="busy || !associationPrefixId">Save pairing</button><button (click)="associate('dissociate')" [disabled]="busy">Remove direct pairing</button><button (click)="clearNativeSelection()">Clear selection</button></div>
       </details>
-      <div class="media-grid"><article *ngFor="let asset of assets; trackBy: trackAsset" [class.selected]="selected.has(asset.id)" integrationVisible (visible)="loadThumbnail(asset)">
-        <label *ngIf="mode!=='folder'" class="check"><input type="checkbox" [checked]="selected.has(asset.id)" (change)="toggle(asset)" [attr.aria-label]="'Select '+asset.name">Select</label>
-        <small *ngIf="mode!=='folder'" class="source-badge">{{asset['locations']?.join(' + ') || asset.source}}</small>
-        <button class="preview" (click)="open(asset)" [attr.aria-label]="'View '+asset.name"><img *ngIf="asset.thumbnail" [src]="asset.thumbnail" loading="lazy" decoding="async" alt=""><span *ngIf="!asset.thumbnail">{{isVideo(asset) ? '▶' : '◇'}}</span><span>{{asset.name}}</span></button>
-        <button *ngIf="mode!=='folder'" (click)="findRelated(asset)" [disabled]="busy">Related images</button>
-        <div *ngIf="mode!=='folder'" class="chips"><span *ngFor="let id of labels(asset).prefixes">&#64;{{prefixName(id)}}</span><span *ngIf="labels(asset).snapshots.size">Snapshot</span></div>
-      </article></div>
-      <div class="load-more" integrationVisible [integrationVisibleOnce]="false" [integrationVisibleEnabled]="hasMore && !busy && !loadingMore && !viewing && !pageError" (visible)="loadMore()">
+      <p *ngIf="preparingNative" role="status">Preparing gallery…</p>
+      <app-image-list-loader [fileIDs]="nativeIDs" [providedFiles]="nativeFiles" [moreAvailable]="hasMore" [galleryActions]="nativeActions" [providedMore]="nativeLoadMore" (loadMore)="loadMore()" (gallerySelection)="nativeSelection($event)"></app-image-list-loader>
+      <div class="load-more" integrationVisible [integrationVisibleOnce]="false" [integrationVisibleEnabled]="hasMore && !busy && !loadingMore && !pageError" (visible)="loadMore()">
         <p *ngIf="loadingMore" role="status">Loading more files…</p>
         <p *ngIf="pageError" role="alert">{{pageError}}</p>
         <button *ngIf="hasMore" (click)="loadMore()" [disabled]="busy || loadingMore">{{pageError ? 'Retry loading more' : 'Load more'}}</button>
@@ -71,19 +65,4 @@
     </ng-container>
 
   </ng-container>
-  <div *ngIf="viewing" class="integration-viewer" role="dialog" aria-modal="true" aria-label="Integration gallery viewer">
-    <div class="viewer-toolbar"><button (click)="closeViewer()">Close</button><button (click)="next(-1)">Previous</button><button (click)="startPlayback()">{{playing?'Pause slideshow':'Play next / slideshow'}}</button><button (click)="next()">Next</button></div>
-    <p *ngIf="loadingMore" role="status">Loading more media…</p>
-    <p *ngIf="pageError" role="alert">{{pageError}} Use Next to retry.</p>
-    <img *ngIf="viewURL && isImage(viewing)" [src]="viewURL" [alt]="viewing.name" (load)="loaded()">
-    <video #media *ngIf="viewURL && isVideo(viewing)" [src]="viewURL" controls playsinline [autoplay]="playing || settings.appSettings.mediaAutoplay" [muted]="settings.appSettings.mediaDefaultMuted" [loop]="!playing&&settings.appSettings.mediaLoop" (ended)="ended()"></video>
-    <audio #media *ngIf="viewURL && !isImage(viewing)&&!isVideo(viewing)" [src]="viewURL" controls [autoplay]="playing || settings.appSettings.mediaAutoplay" [loop]="!playing&&settings.appSettings.mediaLoop" (ended)="ended()"></audio>
-    <p>{{viewing.name}}</p>
-    <ng-container *ngIf="mode!=='folder'">
-      <div class="controls"><button (click)="findRelated(viewing)">Find related images</button><button (click)="copyTags(viewing)">Copy tags</button></div>
-      <details open><summary>Tags · {{tags(viewing).length}}</summary><div class="chips"><span *ngFor="let tag of tags(viewing)">{{tag}}</span></div></details>
-      <details><summary>Prefix associations &amp; provenance</summary><div class="chips"><span *ngFor="let id of labels(viewing).prefixes">&#64;{{prefixName(id)}}</span></div><p *ngFor="let hash of labels(viewing).parents">Source: {{hash}}</p><p *ngFor="let id of labels(viewing).snapshots">Snapshot: {{id}}</p></details>
-      <details><summary>Generation metadata</summary><pre>{{viewing.metadata|json}}</pre></details>
-    </ng-container>
-  </div>
 </section>

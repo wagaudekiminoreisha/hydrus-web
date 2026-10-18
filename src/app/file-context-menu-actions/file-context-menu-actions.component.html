@@ -13,6 +13,7 @@
   <span>Download</span>
 </button>
 <mat-divider></mat-divider>
+@if (!file().gallery_local) {
 @if (fullFile$ | async; as fullFile) {
   @if (fullFile.is_inbox) {
     <button mat-menu-item (click)="archiveFile()">
@@ -45,4 +46,6 @@
     <mat-icon>delete</mat-icon>
     <span>Delete</span>
   </button>
+}
+
 }

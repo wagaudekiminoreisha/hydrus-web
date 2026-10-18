@@ -61,12 +61,40 @@ build, restart its server and hard-refresh the browser/PWA to load the new files
 This direct connection also works from other static deployments when their browser
 can reach ComfyUI.
 
+## Regular search and native gallery controls
+
+In the normal **Browse** search menu, open **Search Options → Include ComfyUI results**.
+This is opt-in and saved in this browser. With it off, the ordinary Hydrus search path
+is unchanged. With it on, the existing tag field accepts local positive prompt tags,
+exclusions, OR groups and `@prefix name` alongside Hydrus results. Copies already in the
+Hydrus result are shown once; matching Hydrus tags also participate in local matching.
+Hydrus keeps its selected sort and service/domain filters; additional local results
+are appended in output-date order. Unsupported Hydrus system predicates conservatively
+exclude local-only files and show a notice. Limits apply to the combined result.
+
+The regular result context menu's **Related images** action opens the lineage,
+snapshot and other-prefix scopes in Browse itself. Prefix/provenance searches inspect
+remote generation notes and may take longer than ordinary tag searches. Cancelling or
+replacing the search stops further page requests. Gallery being offline does not remove
+ordinary Hydrus results; the status explains why local results could not be added.
+
+The ComfyUI browser now uses the same virtualized grid, selection groups, context menus,
+file-information sheet, PhotoSwipe zoom/keyboard/touch controls, download tray and
+slideshow as Browse. The prototype viewer is removed. More pages are requested near
+the end of the viewer, so browsing and slideshows continue beyond the first output page.
+Duplicate files in different output paths keep separate browsing identities; hybrid
+search deduplicates content hashes. Local-only files have read-only prompt metadata;
+Hydrus writes and view-statistic submissions are not sent for those files. Native
+selection download controls work for both sources. ComfyUI media tickets are renewed
+when expired or when the authenticated connection changes.
+
 ## Hybrid viewing and prefix/provenance controls
 
 **Output folders** keeps the shallow remote output-directory browser. **Local** searches
 all nonarchived media below ComfyUI output. **Hydrus** browses the saved Hydrus API
 connection independently. **Hybrid** merges local and Hydrus copies by SHA-256,
-keeps local playback and adds the matching Hydrus tags and portable generation notes.
+adds matching Hydrus tags and portable generation notes, and uses the existing Hydrus
+copy for native Hydrus controls when it is available.
 Switching source tabs clears selection; opening the viewer retains it.
 
 Search accepts comma-separated exact tags, `-excluded tag` and `@prefix name`.
@@ -118,3 +146,5 @@ Update the actual `ComfyUI/custom_nodes/ComfyUI-Gallery` checkout and restart Co
 updating the development checkout alone does not update that installation.
 
 Hybrid validation: `node --test scripts/media-relations.test.cjs`, the Gallery direct-connection Python tests, and `scripts/browser-hybrid-gallery.cjs` against the isolated Gallery/Hydrus fixture.
+
+Native integration validation: `scripts/browser-native-hybrid.cjs` uses the Gallery fixture with `GALLERY_NATIVE_QA=1` and `GALLERY_DIRECT_QA=1`. It verifies the regular search menu, prefix/provenance scopes, local-only media, native viewer and selection safety, plus page-boundary navigation.

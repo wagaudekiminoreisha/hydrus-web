@@ -1,5 +1,5 @@
 <div class="title-row">
-  <h2 class="sheet-title">File Info</h2>
+  <h2 class="sheet-title">{{data.file.gallery_local ? data.file.gallery_name : 'File Info'}}</h2>
   @if (data.file; as file) {
     <div>
       @if (ipfsUrl$ | async; as ipfsUrl) {
@@ -69,7 +69,7 @@
     <mat-list role="list">
       <mat-list-item role="listitem">
         <mat-icon matListItemIcon>{{file.fileIcon}}</mat-icon>
-        <div matListItemTitle>{{file.file_id}}</div>
+        <div matListItemTitle>{{data.file.gallery_local ? 'ComfyUI output' : file.file_id}}</div>
         <div matListItemLine class="metadata-line">
           <span>{{file.file_type_string}}</span>
           @if (file.width && file.height) {
@@ -78,6 +78,7 @@
           <span>{{file.size | byteSize: {units: 'iec', precision: 2} }}</span>
         </div>
       </mat-list-item>
+      @if(!data.file.gallery_local){
       <mat-list-item role="listitem">
         <mat-icon matListItemIcon>{{file.is_trashed ? "delete" : file.is_inbox ? "inbox" : "archive"}}</mat-icon>
         <div matListItemTitle>{{file.is_trashed ? "In Trash" + (file.is_inbox ? " (Inbox)" : " (Archived)") : file.is_inbox ? "In Inbox" : "Archived"}}</div>
@@ -85,26 +86,27 @@
           <div matListItemLine><span [matTooltip]="file.time_imported | date:'yyyy-MM-dd HH:mm:ss.SSS'" matTooltipPosition="above">Imported {{file.time_imported | timeAgo}}</span></div>
         }
         @if (file.is_inbox) {
-          <button mat-icon-button (click)="archiveFile()" matTooltip="Archive" matListItemMeta>
+          <button mat-icon-button [disabled]="data.file.gallery_local" (click)="archiveFile()" matTooltip="Archive" matListItemMeta>
             <mat-icon>archive</mat-icon>
           </button>
         }
         @if (!file.is_inbox) {
-          <button mat-icon-button (click)="unarchiveFile()" matTooltip="Return to inbox" matListItemMeta>
+          <button mat-icon-button [disabled]="data.file.gallery_local" (click)="unarchiveFile()" matTooltip="Return to inbox" matListItemMeta>
             <mat-icon>move_to_inbox</mat-icon>
           </button>
         }
         @if (!file.is_trashed) {
-          <button mat-icon-button (click)="deleteFile()" matTooltip="Send to trash" matListItemMeta>
+          <button mat-icon-button [disabled]="data.file.gallery_local" (click)="deleteFile()" matTooltip="Send to trash" matListItemMeta>
             <mat-icon>delete</mat-icon>
           </button>
         }
         @if (file.is_trashed) {
-          <button mat-icon-button (click)="undeleteFile()" matTooltip="Undelete" matListItemMeta>
+          <button mat-icon-button [disabled]="data.file.gallery_local" (click)="undeleteFile()" matTooltip="Undelete" matListItemMeta>
             <mat-icon>restore_from_trash</mat-icon>
           </button>
         }
       </mat-list-item>
+      }
     </mat-list>
     <mat-accordion multi>
       <mat-expansion-panel>
@@ -127,7 +129,7 @@
           }
         </mat-nav-list>
         <mat-action-row>
-          <button mat-button (click)="addUrlDialog()">Add URL</button>
+          <button mat-button [disabled]="data.file.gallery_local" (click)="addUrlDialog()">Add URL</button>
         </mat-action-row>
       </mat-expansion-panel>
       @if (file.ratings_array && file.ratings_array.length > 0) {
@@ -179,7 +181,7 @@
       <div class="notes-section">
         <div class="sec-header">
           <h3 class="mat-subheading-2">Notes</h3>
-          <button mat-icon-button (click)="addNoteDialog()" matTooltip="Add note"><mat-icon>note_add</mat-icon></button>
+          <button mat-icon-button [disabled]="data.file.gallery_local" (click)="addNoteDialog()" aria-label="Add note" matTooltip="Add note"><mat-icon>note_add</mat-icon></button>
         </div>
         <mat-accordion multi>
           @for (note of file.notesMapArray; track note.name) {
@@ -189,8 +191,8 @@
               </mat-expansion-panel-header>
               <p class="note-content" [innerText]="note.value"></p>
               <mat-action-row>
-                <button mat-icon-button matTooltip="Delete note" (click)="deleteNote(note.name, note.value)"><mat-icon>delete</mat-icon></button>
-                <button mat-icon-button matTooltip="Edit note" (click)="editNoteDialog(note.name, note.value)"><mat-icon>edit</mat-icon></button>
+                <button mat-icon-button matTooltip="Delete note" [disabled]="data.file.gallery_local" (click)="deleteNote(note.name, note.value)"><mat-icon>delete</mat-icon></button>
+                <button mat-icon-button matTooltip="Edit note" [disabled]="data.file.gallery_local" (click)="editNoteDialog(note.name, note.value)"><mat-icon>edit</mat-icon></button>
               </mat-action-row>
             </mat-expansion-panel>
           }
@@ -206,7 +208,7 @@
       <div class="tags-section">
         <div class="sec-header">
           <h3 class="mat-subheading-2">Tags</h3>
-          <mat-slide-toggle color="primary" labelPosition="before" [(ngModel)]="fileInfoSheetService.showStorageTags" [disabled]="!file.storageTags">Edit mode</mat-slide-toggle>
+          <mat-slide-toggle color="primary" labelPosition="before" [(ngModel)]="fileInfoSheetService.showStorageTags" [disabled]="data.file.gallery_local || !file.storageTags">Edit mode</mat-slide-toggle>
         </div>
         <mat-accordion multi>
           @for (service of (fileInfoSheetService.showStorageTags ? file.storageTags : file.displayTags) | orderBy: 'serviceName' | orderBy: '-serviceType'; track  trackByTagService(service)) {

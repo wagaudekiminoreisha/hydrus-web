@@ -21,6 +21,7 @@ export class HydrusViewsService {
   clientSupportsViews$ = this.hydrusVersion.isAtLeastVersion(607)
 
   async submitView(file: HydrusBasicFile, viewStartTimestamp: number, viewEndTimestamp: number) {
+    if(file.gallery_local)return;
 
     if(!(await firstValueFrom(this.clientSupportsViews$))) {
       return;

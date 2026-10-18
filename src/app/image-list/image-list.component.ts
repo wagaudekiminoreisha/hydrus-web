@@ -62,7 +62,10 @@ export class ImageListComponent implements OnInit, OnChanges, OnDestroy {
 
   //@Input() files: HydrusBasicFile[] = [];
 
-  files = input.required<HydrusBasicFile[]>()
+  files = input.required<HydrusBasicFile[]>();
+  requestMore=input<(()=>Promise<HydrusBasicFile[]>)|undefined>();
+  hasMoreFiles=input<(()=>boolean)|undefined>();
+  galleryActions=input<{label:string;icon:string;run:(file:HydrusBasicFile)=>void}[]>([]);
 
 
 
@@ -92,6 +95,7 @@ export class ImageListComponent implements OnInit, OnChanges, OnDestroy {
   selectionActive = computed(() => this.selectionMode() || this.anySelected())
 
   selectionChanges$ = merge(
+    toObservable(this.files),
     toObservable(this.selected),
     toObservable(this.selectionGroups),
     toObservable(this.activeSelectionGroupID),
@@ -170,6 +174,7 @@ export class ImageListComponent implements OnInit, OnChanges, OnDestroy {
       activeColor: () => this.activeSelectionColor(),
       activeGroupName: () => this.activeSelectionGroupName(),
       memberships: fileID => this.fileGroupMemberships(fileID),
+      files:()=>this.files(),loadMore:this.requestMore(),hasMore:this.hasMoreFiles(),
       changes: this.selectionChanges$
     });
   }

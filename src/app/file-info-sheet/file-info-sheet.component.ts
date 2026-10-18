@@ -5,7 +5,7 @@ import { HydrusFilesService } from '../hydrus-files.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { legacyTagsObjectFromFile } from '../utils/tag-utils';
 import { SettingsService } from '../settings.service';
-import { BehaviorSubject, filter, firstValueFrom, map, shareReplay, switchMap } from 'rxjs';
+import { BehaviorSubject, of, filter, firstValueFrom, map, shareReplay, switchMap } from 'rxjs';
 import { MatDialog } from '@angular/material/dialog';
 import { SaucenaoDialogComponent } from '../saucenao-dialog/saucenao-dialog.component';
 import { SaucenaoService } from '../saucenao.service';
@@ -143,7 +143,7 @@ export class FileInfoSheetComponent {
   }
 
   file$ = this.reload$.pipe(
-    switchMap(() => this.filesService.getFileByHash(this.data.file.hash)),
+    switchMap(() => this.data.file.gallery_local?of(this.filesService.getGalleryFile(this.data.file.hash,this.data.file.file_id)!):this.filesService.getFileByHash(this.data.file.hash)),
     map(file => {
       const tags = this.processTags(file);
 

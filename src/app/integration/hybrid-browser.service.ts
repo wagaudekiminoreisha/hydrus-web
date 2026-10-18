@@ -15,7 +15,7 @@ export class HybridBrowserService {
     if(!ids.length)return [];
     const result=await firstValueFrom(this.hydrus.getFileMetadata({file_ids:ids,include_notes:true}).pipe(timeout(15000)));
     return (result.metadata as any[]).filter(row=>row.hash&&!row.is_deleted&&!row.is_trashed&&!row.is_in_trash).map(row=>({
-      id:'hydrus:'+row.hash,source:'hydrus',name:row.known_urls?.[0]?.split('/').pop()||row.hash.slice(0,12),hash:row.hash,mime:row.mime,
+      hydrus_id:row.file_id,id:'hydrus:'+row.hash,source:'hydrus',name:row.known_urls?.[0]?.split('/').pop()||row.hash.slice(0,12),hash:row.hash,mime:row.mime,
       timestamp:Math.max(0,...Object.values(row.file_services?.current||{}).map((service:any)=>Number(service.time_imported)||0))||row.time_modified||0,
       metadata:metadataOf(row),tags:Object.values(row.tags||{}).flatMap((service:any)=>service.display_tags?.['0']||service.storage_tags?.['0']||[])
     }));

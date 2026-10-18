@@ -38,21 +38,20 @@ const assert=require('node:assert/strict');
   assert.equal(await page.evaluate(()=>localStorage.getItem('hydrus-web-comfy-instance')),'11111111-1111-4111-8111-111111111111');
   let expired=false;
   await page.route('**/Gallery/hydrus-web/output',async route=>{if(!expired&&route.request().method()==='POST'){expired=true;await route.fulfill({status:401,json:{error:'fixture expired session'},headers:{'Access-Control-Allow-Origin':new URL(base).origin}});}else await route.continue();});
-  await page.goto(base+'/comfyui');await page.getByRole('button',{name:'View study-1.png',exact:true}).waitFor();
+  await page.goto(base+'/comfyui');await page.getByRole('link',{name:'study-1.png',exact:true}).waitFor();
   assert.equal(await page.getByLabel('ComfyUI address',{exact:true}).count(),0);
-  const thumbnail=page.locator('.media-grid article').first().locator('img');await thumbnail.waitFor();
-  await page.waitForFunction(()=>document.querySelector('.media-grid img')?.naturalWidth>0);
-  await page.getByRole('button',{name:'View study-1.png',exact:true}).click();
-  await page.waitForFunction(()=>document.querySelector('.integration-viewer img')?.naturalWidth>0);
-  await page.getByRole('button',{name:'Close',exact:true}).click();
+  await page.waitForFunction(()=>document.querySelector('.image-list-image')?.style.backgroundImage.includes('/media?ticket='));
+  await page.getByRole('link',{name:'study-1.png',exact:true}).click();
+  await page.waitForFunction(()=>document.querySelector('.pswp__img')?.naturalWidth>0);
+  await page.keyboard.press('Escape');await page.locator('.pswp--open').waitFor({state:'detached'});
   if(process.env.DIRECT_PAGING==='1'){
    await page.getByLabel('Order',{exact:true}).selectOption('name');
-   await page.getByRole('button',{name:'View study-1.png',exact:true}).waitFor();
+   await page.getByRole('link',{name:'study-1.png',exact:true}).waitFor();
    await page.getByRole('button',{name:'Open folder direct-paging',exact:true}).click();
-   await page.getByRole('button',{name:'View page-000.png',exact:true}).waitFor();
-   for(let i=0;i<30&&await page.locator('.media-grid article').count()<120;i++){await page.locator('.load-more').scrollIntoViewIfNeeded();await page.waitForTimeout(150);}
-   assert.equal(await page.locator('.media-grid article').count(),120);
-   await page.getByRole('button',{name:'Up one folder',exact:true}).click();await page.getByRole('button',{name:'View study-1.png',exact:true}).waitFor();
+   await page.getByRole('link',{name:'page-000.png',exact:true}).waitFor();
+   for(let i=0;i<30&&await page.getByRole('button',{name:'Load more',exact:true}).count();i++){await page.locator('.load-more').scrollIntoViewIfNeeded();await page.waitForTimeout(150);}
+   assert.equal(await page.getByRole('button',{name:'Load more',exact:true}).count(),0);
+   await page.getByRole('button',{name:'Up one folder',exact:true}).click();await page.getByRole('link',{name:'study-1.png',exact:true}).waitFor();
   }
   await configureGallery({access_key:'b'.repeat(64)});
   await page.goto(base+'/settings/comfyui');await page.getByRole('alert').filter({hasText:'Hydrus API keys differ'}).waitFor();

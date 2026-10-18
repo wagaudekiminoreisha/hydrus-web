@@ -1,3 +1,4 @@
+import {SharedGalleryModule} from './shared-gallery.module';
 import { RxIf } from "@rx-angular/template/if";
 import { RxPush } from "@rx-angular/template/push";
 import { RxLet } from "@rx-angular/template/let";
@@ -144,12 +145,10 @@ const MAT_MODULES = [
     SettingsComponent,
     TagInputComponent,
     AboutComponent,
-    ImageListComponent,
     PagesComponent,
     FilesPageComponent,
     SendComponent,
     FileInfoSheetComponent,
-    ImageListLoaderComponent,
     ToolbarActionsComponent,
     JoinPipe,
     TagInputDialogComponent,
@@ -177,11 +176,7 @@ const MAT_MODULES = [
     RatingIncDecComponent,
     TagSiblingsParentsDialogComponent,
     IsSystemPredicatePipe,
-    BlurHashColorPipe,
-    MatContextMenuTriggerDirective,
-    ImageListItemComponent,
     ConfirmDialogComponent,
-    FileContextMenuActionsComponent,
     DownloadTrayComponent,
     GalleryContextMenuComponent,
     SelectionGroupDialogComponent,
@@ -189,6 +184,7 @@ const MAT_MODULES = [
   ],
   bootstrap: [AppComponent],
   imports: [
+    SharedGalleryModule,
     IntegrationComponent,
     BrowserModule,
     AppRoutingModule,

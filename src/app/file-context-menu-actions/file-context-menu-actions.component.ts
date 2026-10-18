@@ -3,7 +3,7 @@ import { HydrusFileDownloadService } from '../hydrus-file-download.service';
 import { HydrusFilesService } from '../hydrus-files.service';
 import { HydrusBasicFile } from '../hydrus-file';
 import { toObservable } from '@angular/core/rxjs-interop';
-import { firstValueFrom, switchMap } from 'rxjs';
+import { firstValueFrom, of, switchMap } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ErrorService } from '../error.service';
 
@@ -25,7 +25,7 @@ export class FileContextMenuActionsComponent {
   file = input.required<HydrusBasicFile>();
 
   fullFile$ = toObservable(this.file).pipe(
-    switchMap(f => this.filesService.getFileByHash(f.hash))
+    switchMap(f => f.gallery_local?of(this.filesService.getGalleryFile(f.hash,f.file_id)!):this.filesService.getFileByHash(f.hash))
   )
 
   saveFile() {

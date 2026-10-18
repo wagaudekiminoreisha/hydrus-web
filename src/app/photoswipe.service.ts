@@ -22,6 +22,9 @@ function isContentType(content: Content | Slide, type: string) {
 }
 
 export interface GallerySelectionController {
+  files?:()=>HydrusBasicFile[];
+  loadMore?:()=>Promise<HydrusBasicFile[]>;
+  hasMore?:()=>boolean;
   isSelected: (fileID: number) => boolean;
   toggle: (file: HydrusBasicFile) => void;
   selectedCount: () => number;
@@ -59,7 +62,8 @@ export class PhotoswipeService {
 
   private processedFiles = new Map<string, SlideData>();
 
-  openPhotoSwipe(items: HydrusBasicFile[], id: number, selection?: GallerySelectionController) {
+  async openPhotoSwipe(items: HydrusBasicFile[], id: number, selection?: GallerySelectionController) {
+    if(items.some(file=>file.resolve_media))for(let at=0;at<items.length;at+=8)await Promise.all(items.slice(at,at+8).map(file=>file.resolve_media?.()));
     let viewStartTimestamp = Date.now();
     let lastFile: HydrusBasicFile | undefined;
     let activeFileHash: string | undefined;
@@ -83,6 +87,7 @@ export class PhotoswipeService {
     const options: PhotoSwipeOptions = {
       index: imgindex,
       bgOpacity: 1,
+      loop: !selection?.hasMore?.(),
       clickToCloseNonZoomable: false,
       showHideAnimationType: 'none',
       ...GALLERY_SLIDER_OPTIONS,
@@ -96,11 +101,19 @@ export class PhotoswipeService {
     }
 
     const pswp = new PhotoSwipe(options);
+    let galleryClosed=false;
+    let pendingMore:Promise<void>|undefined;
+    const extendGallery=()=>{
+      if(pendingMore)return pendingMore;
+      if(!selection?.hasMore?.()||!selection.loadMore)return Promise.resolve();
+      pendingMore=selection.loadMore().then(async files=>{if(galleryClosed)return;if(files.length<=items.length)return;for(let at=items.length;at<files.length;at+=8)await Promise.all(files.slice(at,at+8).map(file=>file.resolve_media?.()));items=files;pswp.dispatch('change');}).catch(()=>{}).finally(()=>{pendingMore=undefined;});
+      return pendingMore;
+    };
     let playNext = this.settingsService.appSettings.mediaPlayNext;
     let slideshowTimer: ReturnType<typeof setTimeout> | undefined;
     let slideshowButton: HTMLElement | undefined;
     const clearSlideshow = () => { clearTimeout(slideshowTimer); slideshowTimer = undefined; };
-    const advance = () => { if (!playNext || document.hidden) return; if (this.bottomSheet._openedBottomSheetRef) { slideshowTimer = setTimeout(advance, 1000); return; } if (pswp.currIndex >= items.length - 1) { playNext = false; updateSlideshowButton(); return; } pswp.next(); };
+    const advance = async () => { if (!playNext || document.hidden) return; if (this.bottomSheet._openedBottomSheetRef) { slideshowTimer = setTimeout(advance, 1000); return; } if(pswp.currIndex>=items.length-1&&selection?.hasMore?.())await extendGallery(); if(galleryClosed)return; if (pswp.currIndex >= items.length - 1) { playNext = false; updateSlideshowButton(); return; } pswp.next(); };
     const updateSlideshowButton = () => { if(slideshowButton) { slideshowButton.innerText = playNext ? 'Pause' : 'Play next'; slideshowButton.setAttribute('aria-pressed', String(playNext)); } };
     const scheduleSlideshow = () => {
       clearSlideshow();
@@ -194,7 +207,11 @@ export class PhotoswipeService {
       }
     };
 
-    const selectionSubscription = selection?.changes?.subscribe(() => updateSelectionUI());
+    const selectionSubscription = selection?.changes?.subscribe(() => {
+      const loaded=selection.files?.();
+      if(!galleryClosed&&loaded&&loaded.length>items.length){items=loaded;pswp.options.loop=!selection.hasMore?.();pswp.dispatch('change');}
+      updateSelectionUI();
+    });
 
     pswp.addFilter('numItems', numItems => {
       return items.length;
@@ -202,7 +219,7 @@ export class PhotoswipeService {
 
     pswp.addFilter('itemData', (itemData, index) => {
       const file = items[index];
-      if(this.processedFiles.has(file.hash)) {
+      if(!file.gallery_local&&this.processedFiles.has(file.hash)) {
         return this.processedFiles.get(file.hash);
       }
       return this.getPhotoSwipeItem(items[index]);
@@ -286,6 +303,7 @@ export class PhotoswipeService {
     });
 
     pswp.on('change', () => {
+      if(pswp.currIndex>=items.length-3)void extendGallery();
       scheduleSlideshow();
       this.galleryContextMenu.close();
       updateSelectionUI();
@@ -621,6 +639,7 @@ export class PhotoswipeService {
     });
 
     pswp.on('close', () => {
+      galleryClosed=true;
       clearSlideshow(); document.removeEventListener('visibilitychange', visibility);
       this.galleryContextMenu.close();
       selectionSubscription?.unsubscribe();

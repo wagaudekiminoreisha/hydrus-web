@@ -1,6 +1,6 @@
 <div>
   <div class="search-bar">
-    <app-tag-input [formControl]="tagsFormControl" class="tag-input" placeholder="Tag or Selection Group Search" [enableSelectionGroups]="true"></app-tag-input>
+    <app-tag-input [formControl]="tagsFormControl" class="tag-input" [placeholder]="hybrid.enabled() ? 'Tag, @prefix or Selection Group Search' : 'Tag or Selection Group Search'" [enableSelectionGroups]="true"></app-tag-input>
     <button type="button" mat-flat-button color="primary" class="search-button" (click)="refresh()">
       <mat-icon>search</mat-icon>
       <span>Search</span>
@@ -9,9 +9,13 @@
   @if (searching$ | push) {
     <mat-progress-bar mode="indeterminate" class="search-progress-bar"></mat-progress-bar>
   }
+  @if(hybrid.enabled()){<p class="mat-small">Hydrus + ComfyUI · Hybrid search enabled</p>}
+  @if(hybrid.loading()){<p role="status">Searching ComfyUI output…</p>}
+  @if(hybrid.warning()){<p role="status">{{hybrid.warning()}}</p>}
+  @if(hybrid.related(); as related){<section class="hybrid-related" aria-label="Related image search"><strong>Related to {{related.name}}</strong><mat-checkbox [(ngModel)]="hybrid.scopeLineage" (change)="refresh()">Lineage · same source / generated from</mat-checkbox><mat-checkbox [(ngModel)]="hybrid.scopeSnapshot" (change)="refresh()">Snapshot associations</mat-checkbox><mat-checkbox [(ngModel)]="hybrid.scopePrefix" (change)="refresh()">Other prefix associations</mat-checkbox><button mat-button (click)="clearRelated()">Clear related search</button></section>}
   <ng-container *rxLet="currentSearch$ as search">
     @if (search.length > 0) {
-      <app-image-list-loader [fileIDs]="search" class="app-image-list"></app-image-list-loader>
+      <app-image-list-loader [fileIDs]="search" [galleryActions]="hybrid.enabled() ? galleryActions : []" class="app-image-list"></app-image-list-loader>
     }
     @if (search.length === 0 && (searching$ | push) === false) {
       <div>
@@ -66,6 +70,7 @@
 
   <mat-menu #moreMenu="matMenu">
     <ng-template matMenuContent>
+      <button mat-menu-item (click)="toggleHybrid()"><mat-icon>{{hybrid.enabled() ? 'check_box' : 'check_box_outline_blank'}}</mat-icon>Include ComfyUI results</button>
       <button mat-menu-item (click)="tagServiceDialog()">Tag Service: {{(tagService$ | async)?.name ?? 'Unknown'}}</button>
       <button mat-menu-item (click)="fileServiceDialog()">File Service: {{(fileService$ | async)?.name ?? 'Unknown'}}</button>
     </ng-template>

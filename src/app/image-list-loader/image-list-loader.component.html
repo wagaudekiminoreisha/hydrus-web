@@ -1,4 +1,6 @@
 <app-image-list
+  [galleryActions]="galleryActions()"
+  [requestMore]="viewerMore" [hasMoreFiles]="viewerHasMore"
   [files]="currentFiles()"
   (scrollEnd)="listScrollEnd($event)"
   [selected]="selected()"
@@ -173,28 +175,29 @@
     <span>{{selectionGroups.activeNamedGroups().length > 1 ? 'Download Active Groups to Folders' : (numSelected() > 1 ? 'Download Selected to Folder' : 'Download Selected')}}</span>
   </button>
   <mat-divider></mat-divider>
-  <button mat-menu-item [disabled]="!anySelected()" (click)="archiveSelected()">
+  @if(hasLocalSelection()){<button mat-menu-item disabled>Hydrus changes require a Hydrus-only selection</button>}
+  <button mat-menu-item [disabled]="!anySelected() || hasLocalSelection()" (click)="archiveSelected()">
     <mat-icon>archive</mat-icon>
     <span>{{selectionGroups.activeNamedGroups().length > 1 ? 'Archive Active Group Files' : 'Archive Selected'}}</span>
   </button>
-  <button mat-menu-item [disabled]="!anySelected()" (click)="inboxSelected()">
+  <button mat-menu-item [disabled]="!anySelected() || hasLocalSelection()" (click)="inboxSelected()">
     <mat-icon>move_to_inbox</mat-icon>
     <span>{{selectionGroups.activeNamedGroups().length > 1 ? 'Inbox Active Group Files' : 'Inbox Selected'}}</span>
   </button>
-  <button mat-menu-item [disabled]="!anySelected()" (click)="deleteSelected()">
+  <button mat-menu-item [disabled]="!anySelected() || hasLocalSelection()" (click)="deleteSelected()">
     <mat-icon>delete</mat-icon>
     <span>{{selectionGroups.activeNamedGroups().length > 1 ? 'Delete Active Group Files' : 'Delete Selected'}}</span>
   </button>
-  <button mat-menu-item [disabled]="!anySelected()" (click)="undeleteSelected()">
+  <button mat-menu-item [disabled]="!anySelected() || hasLocalSelection()" (click)="undeleteSelected()">
     <mat-icon>restore_from_trash</mat-icon>
     <span>{{selectionGroups.activeNamedGroups().length > 1 ? 'Undelete Active Group Files' : 'Undelete Selected'}}</span>
   </button>
   <mat-divider></mat-divider>
-  <button mat-menu-item [disabled]="!anySelected()" (click)="addTagsToSelected()">
+  <button mat-menu-item [disabled]="!anySelected() || hasLocalSelection()" (click)="addTagsToSelected()">
     <mat-icon>add</mat-icon>
     <span>{{selectionGroups.activeNamedGroups().length > 1 ? 'Add Tags to Active Groups' : 'Add Tags'}}</span>
   </button>
-  <button mat-menu-item [disabled]="!anySelected()" (click)="removeTags()">
+  <button mat-menu-item [disabled]="!anySelected() || hasLocalSelection()" (click)="removeTags()">
     <mat-icon>remove</mat-icon>
     <span>{{selectionGroups.activeNamedGroups().length > 1 ? 'Remove Tags from Active Groups' : 'Remove Tags'}}</span>
   </button>

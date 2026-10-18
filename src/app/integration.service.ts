@@ -6,7 +6,7 @@ import {sha256} from '@noble/hashes/sha2.js';
 import {bytesToHex, utf8ToBytes} from '@noble/hashes/utils.js';
 import {HydrusApiSettingsService} from './hydrus-api-settings.service';
 
-export interface IntegrationAsset {id:string;source:string;name:string;hash?:string;mime?:string;timestamp?:number;metadata?:any;tags?:string[];depth?:number;thumbnail?:string;prompts?:{positive:string[];negative:string[]};}
+export interface IntegrationAsset {width?:number;height?:number;size?:number;locations?:string[];hydrus_id?:number;id:string;source:string;name:string;hash?:string;mime?:string;timestamp?:number;metadata?:any;tags?:string[];depth?:number;thumbnail?:string;prompts?:{positive:string[];negative:string[]};}
 export interface IntegrationPage {entries:IntegrationAsset[];nextCursor?:string|null;hasMore?:boolean;prefixes?:any[];warnings?:string[];}
 const ADDRESS='hydrus-web-comfy-url', PIN='hydrus-web-comfy-instance';
 @Injectable({providedIn:'root'})
@@ -69,6 +69,7 @@ export class IntegrationService {
       await this.connect();return this.send<T>(path,body,true,method);
     }
   }
+  mediaConnectionID(){return bytesToHex(sha256(utf8ToBytes(this.url+'\n'+this.session+'\n'+this.api.hydrusApiKey())));}
   async media(asset:IntegrationAsset,thumbnail=false) {
     const {ticket}=await this.request<{ticket:string}>('/ticket',{id:asset.id,thumbnail});
     return this.url+this.endpoint+'/media?ticket='+encodeURIComponent(ticket);

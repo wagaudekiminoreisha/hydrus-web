@@ -40,6 +40,8 @@ describe('ImageListComponent', () => {
     const openPhotoSwipe = jasmine.createSpy('openPhotoSwipe');
     const selectionActionsEmit = jasmine.createSpy('selectionActionsEmit');
     (component as any).files = () => [file];
+    (component as any).requestMore=()=>undefined;
+    (component as any).hasMoreFiles=()=>undefined;
     (component as any).selected = () => selected;
     (component as any).photoswipe = {openPhotoSwipe};
     (component as any).selectionActions = {emit: selectionActionsEmit};

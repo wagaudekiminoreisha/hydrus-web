@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HydrusBasicFile, HydrusBasicFileFromAPI, HydrusFile, HydrusFileFromAPI, FileCategory, generateRatingsArray, getFileCategory } from './hydrus-file';
-import { Observable, of, forkJoin, from } from 'rxjs';
+import { Observable, of, forkJoin, from, throwError } from 'rxjs';
 import { HydrusApiService } from './hydrus-api.service';
 import { map, mergeMap, switchMap, tap, toArray } from 'rxjs/operators';
 import { HydrusServices } from './hydrus-services';
@@ -26,6 +26,9 @@ export class HydrusFilesService {
 
   private allFiles: Map<number, HydrusBasicFile> = new Map<number, HydrusBasicFile>();
 
+  private galleryFiles=new Map<string,HydrusFile>();
+  getGalleryFile(hash:string,id?:number){return (id!==undefined?this.allFiles.get(id):this.galleryFiles.get(hash)) as HydrusFile|undefined;}
+  registerGalleryFile(file:HydrusFile){this.galleryFiles.set(file.hash,file);this.allFiles.set(file.file_id,file);}
   clearFilesCache(): void {
     this.allFiles.clear();
   }
@@ -144,6 +147,7 @@ export class HydrusFilesService {
   }
 
   getFileMetadata(fileIds: number[]): Observable<HydrusBasicFile[]> {
+    if(fileIds.some(id=>id<0&&!this.allFiles.has(id)))return throwError(()=>new Error('Load these ComfyUI files in the browser before using their saved selection.'));
     const existingFiles: HydrusBasicFile[] = [];
     const filesToGet: number[] = [];
     for (const id of fileIds) {
@@ -255,6 +259,8 @@ export class HydrusFilesService {
 
 
   public getFileAsFile(file: HydrusBasicFileFromAPI): Observable<File> {
+    const local=file as HydrusBasicFile;
+    if(local.gallery_local)return from((async()=>{await local.resolve_media?.();const response=await fetch(local.file_url);if(!response.ok)throw new Error('ComfyUI download failed');const blob=await response.blob();return new File([blob],local.gallery_name||local.hash+local.ext,{type:blob.type});})());
     return this.api.getFileAsBlob(file.hash).pipe(
       map(b => new File([b], file.hash + file.ext, {type: b.type}))
     );
@@ -282,18 +288,22 @@ export class HydrusFilesService {
 
 
   public deleteFiles(file_ids: number[], reason: string = 'Hydrus Web'){
+    if(file_ids.some(id=>id<0))return throwError(()=>new Error('This action requires Hydrus files.'));
     return this.api.deleteFiles({file_ids, reason});
   }
 
   public undeleteFiles(file_ids: number[]){
+    if(file_ids.some(id=>id<0))return throwError(()=>new Error('This action requires Hydrus files.'));
     return this.api.undeleteFiles({file_ids});
   }
 
   public archiveFiles(file_ids: number[]){
+    if(file_ids.some(id=>id<0))return throwError(()=>new Error('This action requires Hydrus files.'));
     return this.api.archiveFiles({file_ids});
   }
 
   public unarchiveFiles(file_ids: number[]){
+    if(file_ids.some(id=>id<0))return throwError(()=>new Error('This action requires Hydrus files.'));
     return this.api.unarchiveFiles({file_ids});
   }
 
