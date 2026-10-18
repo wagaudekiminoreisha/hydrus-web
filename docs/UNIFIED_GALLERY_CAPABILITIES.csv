@@ -1,5 +1,5 @@
 id,module,capability,reference_evidence,destination_status,delivery_stage,acceptance_summary
-C01,Catalog,Standalone library without Hydrus,TARGET,NOT BUILT,B,"Import, edit and search with both external apps stopped"
+C01,Catalog,Full main-Hydrus-client replacement with independent runtime,MAIN HYDRUS PRIMARY,NOT BUILT,B,Own core/schema; not a frontend skeleton or running-Hydrus wrapper
 C02,Storage,Managed copies and linked locations,PARTIAL REFERENCE,NOT BUILT,B,One hash identity retains multiple verified locations
 C03,Storage,Multiple roots and library domains,HYDRUS TARGET,NOT BUILT,B,Offline root retains metadata and reconnects without duplicates
 C04,Import,Resumable idempotent imports,TARGET,NOT BUILT,B,"Kill, resume, rerun; no duplicate assets or mappings"
@@ -10,7 +10,7 @@ C08,Search,Exact tags and boolean query AST,HYDRUS WEB / GALLERY,NOT BUILT,B,Cas
 C09,Search,System predicates and capability reporting,PARTIAL REFERENCE,NOT BUILT,C,"Unsupported provider predicate is explicit, never silently ignored"
 C10,Search,Regular-search hybrid scope,HYDRUS WEB / GALLERY,NOT BUILT,C,One normal query surface includes optional ComfyUI results
 C11,Search,Stable pagination and shared viewer cursor,HYDRUS WEB / GALLERY,NOT BUILT,B,"Grid and viewer cross 48, 100 and 200 results"
-C12,Search,"Prefix, snapshot and lineage scopes",HYDRUS WEB / GALLERY,NOT BUILT,D,Other prefix results subtract queried source family
+C12,Search,"Prefix, snapshot and lineage scopes",HYDRUS WEB / GALLERY,NOT BUILT,D,App-local indexes answer provenance and prefix queries while ComfyUI is stopped
 C13,Workspace,Persistent named colored selection groups,HYDRUS WEB,NOT BUILT,B,Membership survives restart without provider ID collisions
 C14,Workspace,Transient selection and mode memory,HYDRUS WEB / GALLERY,NOT BUILT,B,Tabs clear transient picks; dialogs preserve them
 C15,Media,"Images, animation, video and audio",HYDRUS WEB / GALLERY,NOT BUILT,A,Probe target-platform decoders and bounded caches
@@ -41,11 +41,11 @@ C39,Folders,Send to and prefix/lineage routing,GALLERY,NOT BUILT,D,Preview prece
 C40,Lifecycle,Visibility archive and physical archive,GALLERY,NOT BUILT,B,Restore original subpath and sidecars after preference changes
 C41,Lifecycle,"Inbox, trash and deletion records",HYDRUS WEB / HYDRUS,NOT BUILT,B,States are distinct and reversible operations have undo
 C42,Jobs,Persistent transfers and conflict handling,GALLERY PARTIAL,NOT BUILT,B,Restart recovery and note edits do not lose data
-C43,Migration,Hydrus API importer with coverage report,TARGET,NOT BUILT,C,Negotiate version/permissions and verify service-level counts
+C43,Migration,Secondary Hydrus API importer with coverage report,TARGET,NOT BUILT,C,Optional exchange path; API limitations do not constrain direct DB migration
 C44,Migration,Portable sidecars and tag archives,TARGET,NOT BUILT,C,Format-specific readers preserve unknown raw data and report gaps
-C45,Migration,Versioned offline backup translator,TARGET,NOT BUILT,E,Reject unknown schema; never modify live Hydrus SQLite
-C46,ComfyUI,Direct authenticated output browser,HYDRUS WEB / GALLERY,NOT BUILT,C,Existing ComfyUI endpoint; no separate bridge terminal
-C47,ComfyUI,Pinned identity and expiring media access,HYDRUS WEB / GALLERY,NOT BUILT,C,Replacement instance requires confirmation; expired tickets renew
+C45,Migration,Primary versioned direct SQLite schema translator,MAIN HYDRUS LOCAL SCHEMA,NOT BUILT,B,Consistent complete source DB set maps into new schema; standalone after import
+C46,ComfyUI,ComfyUI discovery/media connector with canonical ingestion,HYDRUS WEB / GALLERY,NOT BUILT,C,"Remote supplies files/events, not authoritative metadata/prefix indexes"
+C47,ComfyUI,App-owned authenticated canonical Gallery client contract,HYDRUS WEB / GALLERY,NOT BUILT,C,Gallery adopts app IDs/schema; no separate user-run bridge or Hydrus key dependency
 C48,ComfyUI,Optional workflow handoff and execution,PARTIAL REFERENCE / LATER,NOT BUILT,F,Viewing metadata never automatically executes a graph
 C49,Customization,"Tokens, density, layouts and keymaps",PARTIAL REFERENCE / TARGET,NOT BUILT,D,Later Figma layout leaves domain tests unchanged
 C50,Customization,Accessible in-app dialogs and focus,HYDRUS WEB / GALLERY,NOT BUILT,B,Escape closes top layer; menus remain usable during jobs
@@ -59,3 +59,8 @@ C57,Platform,Windows package and macOS/Linux evidence,NEW IMPLEMENTATION,NOT BUI
 C58,Performance,Large-library indexed and virtualized experience,PARTIAL REFERENCE / TARGET,NOT BUILT,B,Document hardware and results for 100k realistic assets
 C59,Privacy,Secure settings and bounded providers,PARTIAL REFERENCE / TARGET,NOT BUILT,A,"Keys absent from logs, media URLs and exported metadata"
 C60,Compatibility,"External sharing, reverse search and tools",HYDRUS WEB OPTIONAL,NOT BUILT,E,Provider plugins are opt-in and not required for local browsing
+C61,Core audit,Main-client functional parity and source module inventory,MAIN HYDRUS PRIMARY,NOT BUILT,A,"Pin source version and inspect full client, not just API/frontends"
+C62,Migration,Source table and serialized-object schema map,MAIN HYDRUS LOCAL SCHEMA,NOT BUILT,A,"Map statuses, per-service tables, identities and object versions with fidelity checks"
+C63,Metadata,Canonical local metadata matching and identity contract,REQUIRED FORK EXTENSIONS,NOT BUILT,B,"Hash, used tags, recipes, snapshots and derivation have distinct explicit semantics"
+C64,Integration,ComfyUI-Gallery adopts replacement-owned schema,USER ARCHITECTURE REQUIREMENT,NOT BUILT,C,No competing authoritative prefix/rule/provenance scheme; legacy migration only
+C65,Search,All ingested relationship indexes work without ComfyUI,USER ARCHITECTURE REQUIREMENT,NOT BUILT,B,Offline media availability does not remove searchable metadata or relationships

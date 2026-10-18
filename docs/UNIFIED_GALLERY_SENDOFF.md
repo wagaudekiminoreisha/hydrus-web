@@ -1,24 +1,34 @@
 # Unified Gallery — product specification and engineering handoff
 
-Prepared 18 October 2026, Europe/Berlin. This is a build brief for a new application, a record of the two existing projects, and a migration contract. The companion [capability ledger](UNIFIED_GALLERY_CAPABILITIES.csv) provides an initial implementation tracker; all destination entries start as not built. It is not a claim that the replacement has already been implemented.
+Prepared 18 October 2026, Europe/Berlin. This is a build brief for a new application, a main-client replacement specification with our two fork feature appendices, and a migration contract. The companion [capability ledger](UNIFIED_GALLERY_CAPABILITIES.csv) provides an initial implementation tracker; all destination entries start as not built. It is not a claim that the replacement has already been implemented.
 
 ## 1. Mandate for the next Codex session
 
-Build an independent, modular, cross-platform media library and creative gallery. The destination is a full Hydrus-class client with the browsing, customization, prompt editing, provenance and workflow ergonomics developed in Hydrus Web and ComfyUI-Gallery.
+Build a **full replacement for the main Hydrus Network client**, with a new cross-platform GUI, independently owned core and improved database schema. Neither Hydrus Web nor ComfyUI-Gallery is the application skeleton. They are feature appendices supplying our custom behavior; this is not two frontends stitched together and not a wrapper around a running Hydrus client.
 
-The application must eventually own its library, tags, relationships, search, imports, jobs and maintenance. Hydrus is a migration source and optional external provider, not the permanent database or hidden engine. ComfyUI is initially a connected output browser and metadata provider. Moving model inference and other local AI facilities into the application is a later capability; keep a clean place for it without making the first usable library depend on a GPU or model installation.
+The authority hierarchy is:
+
+1. **Main Hydrus Network client:** primary functional specification, data semantics, complete capability inventory and source schema to translate. Study its source and actual local SQLite database, not just the Client API.
+2. **Our fork additions:** required metadata matching, portable generation records, provenance, prefix/snapshot associations, structured prompt language, rules/protections, source omissions, search/viewer/selection and customization behavior. They augment the replacement and must not disappear in a generic Hydrus rewrite.
+3. **New implementation:** original application architecture and GUI. Reuse sound algorithms or isolated components when justified, but do not inherit Hydrus's application coupling or either frontend's host/framework workarounds.
+
+The engineering skeleton is new. The main client's functional model is the baseline; our forks are mandatory feature specifications on top of it.
+
+**Canonical ownership:** the replacement owns the local metadata, tag, provenance, prefix, snapshot, rule and search indexes. None requires a running or reachable ComfyUI instance. The new app defines the canonical data model and versioned integration contract; ComfyUI-Gallery is changed to accommodate that scheme. Legacy translation is an import/compatibility boundary, not a permanent architecture with two authoritative prefix/provenance systems.
+
+The application must own its library, tags, relationships, search, imports, jobs and maintenance from its first standalone vertical slice. Hydrus is a migration source and optional external provider, not the permanent database or hidden engine. ComfyUI is initially a connected output browser and metadata provider. Moving model inference and other local AI facilities into the application is a later capability; keep a clean place for it without making the first usable library depend on a GPU or model installation.
 
 The user explicitly permits creative freedom in GUI design and replacing awkward historical implementations with better designs. Preserve the meaning of features and saved data, not accidental layouts, framework constraints or workarounds. A Figma design may arrive later: visual structure must be replaceable without rewriting the library, search or prompt engines.
 
 Do not interpret this as permission to replace the user's production libraries, delete source media, edit a live Hydrus database, force-push repositories, or migrate credentials automatically. Develop against isolated fixtures and a new application data directory. Keep the current applications usable during the transition.
 
-**First objective:** a real standalone local library, safe Hydrus import, and the existing ComfyUI output browsing experience in one coherent application. **Final objective:** the broader Hydrus client capability set in section 6, with deliberate module boundaries. A viewer connected to Hydrus is an intermediate milestone, not completion.
+**First objective:** audit the main client and its SQLite schema, then implement a real standalone local-library slice, a versioned local-database translator, and connected ComfyUI browsing. **Product completion:** the audited main-client capability set plus the custom fork functionality specified here. API access is an optional adapter; an API-only viewer is not the replacement and is not the primary delivery path.
 
 ### Execution instructions
 
-1. Read this document and the source map before choosing implementation details. Inspect current checkouts and preserve local changes.
-2. Create a separate repository/workspace for the replacement when implementation is authorized. Do not turn either reference project into an unreviewable experimental rewrite.
-3. Write architecture decisions and a capability ledger. Prove the desktop media, drag/drop, database and packaging paths with small working spikes.
+1. Read this document; obtain and pin the main Hydrus Network source matching the migration target; inventory its subsystems and local schema. Read our two forks as feature appendices. Inspect current checkouts and preserve local changes.
+2. Create a separate repository/workspace for the replacement when implementation is authorized. Begin from the new domain/schema/module design informed by the main client, not an Angular/React frontend skeleton. Do not turn any reference project into an unreviewable experimental rewrite.
+3. Write architecture decisions, a main-client parity ledger and a source-to-destination schema map, alongside the fork-feature ledger. Prove desktop media, drag/drop, local schema translation and packaging with working spikes.
 4. Build complete vertical slices, beginning with import → durable catalog → search → gallery → viewer → metadata edit → restart recovery.
 5. Keep behavior, migration and performance tests executable. Report which capabilities are implemented, adapted, partially migrated, unsupported or deferred.
 6. Keep moving through reversible implementation choices. Seek clarification for genuinely missing product decisions, not every layout or internal abstraction.
@@ -28,9 +38,9 @@ Do not interpret this as permission to replace the user's production libraries, 
 
 | Project | Reference at preparation | Purpose |
 |---|---|---|
-| Hydrus Web | [wagaudekiminoreisha/hydrus-web](https://github.com/wagaudekiminoreisha/hydrus-web), branch `codex/windows-handoff`, `cfddc7f` | Angular client, native gallery interactions, selection groups, regular-search hybrid integration, ComfyUI connection and context actions. |
-| ComfyUI-Gallery | [wagaudekiminoreisha/ComfyUI-Gallery](https://github.com/wagaudekiminoreisha/ComfyUI-Gallery), branch `codex/windows-integration`, `e14d14b` | React/TypeScript gallery, Python integration, prompt library/editor, source images, rules, archives, transfer and provenance behavior. |
-| Hydrus Network | Upstream client and official documentation, version to be pinned during implementation | Functional reference and migration source. Its complete behavior is not implemented by either reference frontend. |
+| Main Hydrus Network client | [hydrusnetwork/hydrus](https://github.com/hydrusnetwork/hydrus), source and installed database version to be pinned during implementation | Primary functional specification and schema source. Audit the actual client; the API/frontends do not define its complete scope. |
+| Hydrus Web — feature appendix A | [wagaudekiminoreisha/hydrus-web](https://github.com/wagaudekiminoreisha/hydrus-web), branch `codex/windows-handoff`, behavior reference `cfddc7f` | Required custom native-gallery interactions, selection groups, ordinary-search hybrid integration, ComfyUI connection and metadata-aware context actions. |
+| ComfyUI-Gallery — feature appendix B | [wagaudekiminoreisha/ComfyUI-Gallery](https://github.com/wagaudekiminoreisha/ComfyUI-Gallery), branch `codex/windows-integration`, `e14d14b` | Required custom metadata matching, synchronization, prompt library, prefixes/snapshots, rules, source images, provenance and creative workflows. |
 
 Local Windows locations at preparation:
 
@@ -40,7 +50,7 @@ Local Windows locations at preparation:
 - Snapshot ZIPs: `<hydrus-web>\.work\snapshots`.
 - Known app addresses: Hydrus Web `http://localhost:8080`; ComfyUI `http://127.0.0.1:8188`. These are machine-specific connection settings, not constants for the new app.
 
-The source checkouts, production custom node and running process are different things. Installing files does not reload Python; building a frontend does not force an already-open browser to refresh. The latest ruleset change is frontend-only. Earlier source-exclusion changes also require the new Python node input. A running ComfyUI process may lag installed files if it was busy generating. Recheck runtime state rather than claiming a feature is live from a commit alone.
+The source checkouts, production custom node and running process are different things. The replacement will also own its own runtime/indexes; the installed Gallery is not its database server. Installing files does not reload Python; building a frontend does not force an already-open browser to refresh. The latest ruleset change is frontend-only. Earlier source-exclusion changes also require the new Python node input. A running ComfyUI process may lag installed files if it was busy generating. Recheck runtime state rather than claiming a feature is live from a commit alone.
 
 ### Evidence and historical contradictions
 
@@ -50,7 +60,7 @@ In particular: the separate Node bridge is historical; configuration belongs in 
 
 The user reported actual production failures after fixture tests passed. Two recent examples were a string-versus-`Path` mismatch in the direct library endpoint and an empty negative prompt becoming `[""]` in snapshot requests. Preserve those regressions as tests and test realistic boundary types, not only ideal fixtures.
 
-## 3. What Hydrus Web currently contributes
+## 3. Feature appendix A — Hydrus Web contributions
 
 These are existing frontend capabilities, subject to API permissions and provider support. They should inform the new client without forcing it to keep Angular, Electron, Capacitor or Hydrus file identifiers.
 
@@ -90,7 +100,7 @@ Current settings/source include external reverse-image search, sharing links, IP
 
 Hydrus Web currently has PWA, Capacitor mobile and Electron Windows packaging paths. Their existence is not proof that a new Flutter/native implementation already works on those targets.
 
-## 4. What ComfyUI-Gallery currently contributes
+## 4. Feature appendix B — ComfyUI-Gallery contributions
 
 ### 4.1 Workspace and media operations
 
@@ -202,6 +212,24 @@ Do not promise that lexical rules prevent model attention leakage. ControlNet/IP
 - Archive supports hiding media in place and an optional physical `_archive` subtree. Preserve original relative paths and sidecars; restore is reversible; collisions abort rather than overwrite. Do not silently relocate previously archived items when a setting changes.
 - Gallery archive visibility, Hydrus inbox/archive state, trash and permanent deletion are different concepts. The new app must model and label them separately even if the GUI later presents a simpler combined workflow.
 
+### 4.8 Required custom metadata-matching contract
+
+Our forks' custom indexes and relationships are first-class local domains in the replacement, not optional metadata decoration or features delegated to ComfyUI-Gallery. Preserve these distinctions:
+
+| Match or relationship | Canonical meaning |
+|---|---|
+| Exact file/copy match | Original-byte hash identifies the same asset across disk, Hydrus, ComfyUI output and downloaded copies. Keep locations and source-attributed metadata separately. |
+| Tag match | Whole used-tag matching with explicit normalization, service and polarity semantics. Filename/prose substring matching is a different query mode. |
+| Recipe equivalence | Structured unresolved positive/negative recipe and relevant policy equivalence; preserve weights, groups and versioned canonicalization. Identical sampled tags alone do not prove identical recipes. |
+| Prefix association | Explicit membership of an asset/source contribution in a reusable recipe; shared tags are not permission to merge distinct media assets. |
+| Snapshot association | An explicit immutable variant reference plus membership; changes do not mutate the parent or all other members. |
+| Source/generation provenance | Typed, evidenced edges from original sources/contributions through transformations and generation inputs to outputs. A matching filename or common prefix is not proof of derivation. |
+| Metadata synchronization | Reconcile attributed revisions/baselines; preserve external edits and detect conflicts. Prefer authoritative evidence over whichever provider happened to respond first. |
+
+Extract resolved prompts by following conditioning links and saved encoder/run records, including positive/negative sides. Keep the original workflow/source manifests and unknown fields. Portable copies must carry enough canonical identity/relationship evidence to regain associations on reimport. Resolve legacy sidecars/notes into the canonical scheme once; retain the raw evidence and parser version.
+
+These indexes must remain searchable and editable after both Hydrus and ComfyUI are shut down. A remote-only original may be unavailable for playback, but that must not erase its catalog entry, cached metadata, provenance graph, prefix/snapshot memberships or local search results. Cache availability and original-media availability are separate from index validity.
+
 ## 5. GUI behavior that is a product requirement
 
 The exact visual design is open. These interaction contracts are not:
@@ -227,9 +255,9 @@ Allow density presets, thumbnail size/aspect/crop choices, layout presets, dock 
 
 Figma later becomes a visual specification: replace tokens, spacing, components and layouts while preserving view-model contracts and domain commands. Use semantic component names and design tokens rather than hardcoded geometry. Do not require a Figma account or remote service for normal app operation.
 
-## 6. What “full Hydrus client” adds beyond these projects
+## 6. Primary scope — replace the main Hydrus Network client
 
-This is a target parity ledger, not a list of features already supplied by the web frontends.
+This is the core product scope, not an optional expansion of the frontend projects. The web frontends cannot serve as its complete inventory. Audit the main client source before finalizing this ledger; stage the implementation without demoting unimplemented main-client features to permanently optional work.
 
 | Area | Required destination behavior | Sequencing |
 |---|---|---|
@@ -245,7 +273,7 @@ This is a target parity ledger, not a list of features already supplied by the w
 | Maintenance | Backup/restore, integrity checks, rehash/rethumbnail, schema/index migrations, storage relocation, compaction and repair reporting. | Recovery starts in core; full suite expands. |
 | Export and interoperability | Files and sidecars, portable collections/recipes/rules/provenance, Hydrus adapters and transparent unsupported-data reports. | Core export before risky migration. |
 
-Inventory the pinned upstream client's additional capabilities before declaring parity. Do not promise complete importer coverage for downloader configurations, repository accounts, sibling application rules, subscriptions, duplicate state or saved sessions without an implemented mapping and a round-trip/verification test. “Hydrus-class standalone library” and “complete compatibility with every Hydrus feature” are distinct claims.
+Inventory the pinned upstream client's additional capabilities before declaring parity. Do not promise complete importer coverage for downloader configurations, repository accounts, sibling application rules, subscriptions, duplicate state or saved sessions without an implemented mapping and a round-trip/verification test. The final goal remains full replacement of the audited main client plus our fork additions; a smaller Hydrus-like library is not a substitute for completing that ledger.
 
 ## 7. Technology direction and decision gate
 
@@ -272,14 +300,14 @@ Start with a **modular monolith**: one installed application, one managed local 
 | Catalog | Assets, locations, file facts, library domains and lifecycle. | UI widgets or provider HTTP details. |
 | Storage | Managed blobs, linked roots, safe file transactions, path resolution and integrity. | Tag meaning or search UI. |
 | Metadata/tagging | Namespaces, tags, service mappings, assertions, implications, ratings, notes and URLs. | ComfyUI graph interpretation. |
-| Search | Query AST, planning, indexes, cursor sessions, stable sorting and capability reporting. | Widget state or synchronous full-library decoding. |
+| Search | Query AST, app-owned local indexes, cursor sessions, stable sorting and explicit remote discovery. | Depending on a remote Gallery library/catalogue to answer existing indexed relationship queries. |
 | Media | Thumbnail/render caches, decode/playback and format capability probes. | Import authority or arbitrary network access. |
 | Provenance | Source/derived edges, transformations, generation runs and association queries. | Treating a prefix as an image identity. |
 | Prompt recipes | Structured syntax, library prefixes, immutable snapshots and run resolution. | Filesystem movement or model inference. |
 | Rules | Definitions, policy attachments, precedence, conditions, execution and explanations. | Pretending lexical tags create spatial ownership. |
 | Jobs | Durable work, progress, cancellation, retry, resource budgets and recovery. | UI-thread loops or ad hoc private queues in every feature. |
-| Hydrus adapter/importer | Version/permission discovery, API mapping, offline import profiles and reconciliation. | The core schema or UI components. |
-| ComfyUI adapter | Pairing, output catalogue/media access, generation metadata and optional workflow handoff. | Requiring a GPU for the local library. |
+| Hydrus migration / optional adapter | Primary versioned local SQLite translation, source serialization maps and reconciliation; secondary API exchange. | Requiring Hydrus at runtime or making source schema/API types the destination core model. |
+| ComfyUI connector / Gallery client contract | Media acquisition, canonical generation-event transport, pairing and optional workflow handoff; Gallery conforms to the replacement model. | Owning the authoritative prefix/provenance/rule/search indexes, or requiring a live ComfyUI for library queries. |
 | Acquisition | Downloaders, subscriptions, parsing and network budgets. | Direct uncontrolled writes into the catalog. |
 | Similarity | Candidate hashes, duplicate/alternate decisions and comparison workflows. | Conflating similarity with content equality. |
 | Workspace/presentation | Navigation, layout, selection, dialogs, shortcuts and preferences. | SQL or provider-specific write rules. |
@@ -287,11 +315,21 @@ Start with a **modular monolith**: one installed application, one managed local 
 
 Domain entities do not import Flutter/React, HTTP clients, SQLite row types or ComfyUI/LiteGraph types. Repositories/ports expose domain values; application commands orchestrate transactions; UI controllers expose state and cancellation. Provider errors become typed outcomes with retry/status detail. Use a small set of explicit events such as `AssetImported`, `TagAssertionsChanged`, `JobProgressed` and `ProviderStateChanged`; avoid an undocumented global event bus.
 
-Package by feature/module, with module-level tests and clear import rules. A service file growing into thousands of lines is a design-review trigger, not a milestone. Prefer boring schema migrations and explicit jobs over dynamic magic.
+Package by feature/module, with module-level tests and clear import rules. The upstream client already has database submodules; do not pretend it is literally one file or discard useful separations. Audit their cross-module coupling, orchestration and ownership, then choose the new boundaries deliberately. A service file growing into thousands of lines is a design-review trigger, not a milestone. Prefer boring schema migrations and explicit jobs over dynamic magic.
+
+### One canonical schema, one authoritative library
+
+The replacement is the schema owner. Define canonical asset/location identities, attributed metadata, generation/source edges, prefix revisions, immutable snapshots, rule definitions/attachments, prompt AST and source omissions in the application domain. Publish a versioned transport schema and generated client types for integrations. The transport must express those same canonical concepts; it need not expose the internal SQL tables.
+
+ComfyUI-Gallery becomes a client of that contract, not a second library backend whose JSON scheme the replacement must keep reconstructing. Update Gallery's metadata writers, prefix/rules interfaces and generation records to use canonical IDs, revisions and semantics. Its legacy JSON libraries/notes/sidecars are migrated through an explicit import path. Shared behavior fixtures verify that the Python/TypeScript integration speaks the same contract as the replacement core.
+
+The app owns a local library API/IPC boundary, lifecycle and database writer. Gallery clients do not open and mutate the replacement's SQLite files directly. This keeps process boundaries and future schema migrations safe while retaining one data model. Launch any required local integration endpoint with the app, scoped/authenticated by app-owned pairing credentials; no separately managed terminal or retained requirement for Hydrus API keys.
+
+If Gallery is used while the app is unavailable, it may retain a bounded canonical read cache and a durable outbox of operations/generation events. Stable client-generated identifiers and idempotent operation IDs allow later ingestion; canonical recipe/snapshot deduplication is resolved on commit. Reconcile base revisions explicitly instead of overwriting the app's library. A cache/outbox is not another permanent authoritative index, and offline events become fully searchable in the replacement after ingestion.
 
 ### Provider contract
 
-Each provider reports capabilities, version, permissions, connection identity and offline state. Use stable provider IDs and external-reference mappings. A remote path is interpreted by its provider, not passed to the local filesystem. Opening an asset resolves an appropriate available location/ticket. Do not store expiring signed URLs as asset identity.
+Each provider reports capabilities, version, permissions, connection identity and offline state. Use stable provider IDs and external-reference mappings. A remote path is interpreted by its provider, not passed to the local filesystem. Provider enumeration discovers new media; app-owned persisted indexes answer already-known metadata/provenance/prefix queries independently of that enumeration. Opening an asset resolves an appropriate available location/ticket. Do not store expiring signed URLs as asset identity.
 
 The app starts its own services/workers. A configured ComfyUI installation supplies its adapter endpoint inside the existing ComfyUI process; the user should not run a companion bridge terminal. A native client can avoid browser CORS constraints, but authentication, peer verification and replacement confirmation remain necessary.
 
@@ -342,7 +380,7 @@ Important invariants:
 
 Represent queries as an AST, with a visual chip editor and a readable text serialization. Support exact tag, namespace, OR/AND/NOT, source/provider, rating, note, filename, media facts, collection, prefix, snapshot and lineage predicates. Prefix names can be entered with `@name`; retain stable IDs underneath and handle ambiguous/renamed names explicitly. Searching substrings remains appropriate for filename/text modes, not an accidental replacement for exact tag search.
 
-The normal search surface includes local, remote and hybrid sources. A query planner splits compatible predicates across providers and performs explicit local joins/post-filtering when justified. An unsupported provider predicate yields an explanation/coverage result; it must not silently match everything or masquerade as an empty library. Incomplete remote provenance results are labeled incomplete.
+The normal search surface includes local assets and indexed remote locations through the same app-owned indexes. Metadata, provenance, prefix/snapshot and rule queries execute locally for all ingested records, regardless of location availability. An explicit remote-discovery/refresh operation may supplement the catalog with not-yet-indexed media; imported canonical records then enter the local query engine. Provider-side search is a compatibility/discovery optimization, never the sole owner of those indexes. A query planner may split discovery predicates across optional providers and perform explicit local joins/post-filtering when justified. An unsupported provider predicate yields an explanation/coverage result; it must not silently match everything or masquerade as an empty library. Incomplete remote provenance results are labeled incomplete.
 
 Search pages are stable cursor/snapshot sessions. Metadata pages and visible thumbnails load on demand; filtering a page to zero matches does not imply no further results. The virtual grid and viewer share the same result cursor. Cancellation/version tokens prevent stale results entering a new query. Archive searches, folder direct contents and recursive library searches are separate scopes.
 
@@ -366,17 +404,35 @@ Stock packs should prioritize generic anatomy, pose, garments/layers, materials,
 
 The importer is a product feature, not a one-off developer script. It needs a visual plan, dry run, progress, pause/resume, cancellation, reconciliation and a durable report.
 
-### Import modes
+### Primary path: translate local Hydrus SQLite data into our own schema
 
-1. **API-assisted import:** capability/version/permission discovery; enumerate identifiers using appropriate service/domain scopes; retrieve metadata in bounded batches; retrieve or reference verified media where authorized. No direct SQL access to the live database.
-2. **Portable export import:** originals plus metadata sidecars, supported Hydrus tag archives and Gallery generation records. Design explicit format/version readers; do not assume a tag archive contains all other library state.
-3. **Offline snapshot import:** only from a verified, consistent Hydrus backup or an intentionally stopped client's copied data. Use a version-specific read-only translator and manifest. Unknown schema versions stop that reader with an actionable report. This is not permission to attach to changing live SQLite files or to modify Hydrus's schema.
+The user's main migration path is direct local database migration. SQLite makes inspecting and translating source tables feasible; the destination does not need to adopt their schema or run Hydrus's application code. The work is understanding the source version's relationships and serialized data, not merely copying table names. The API is a secondary convenience for remote imports or comparison, not a ceiling on what we can migrate.
 
-The [official Client API](https://hydrusnetwork.github.io/hydrus/developer_api.html) and [database merging documentation](https://hydrusnetwork.github.io/hydrus/database_merging.html) describe supported access and exchange mechanisms; they do not guarantee an all-state export for an independent replacement. API relationship lookup can describe computed applied sibling/parent results, which is not automatically the complete editable source rule configuration. Record both when available and label the distinction.
+Hydrus commonly uses `client.db`, `client.master.db`, `client.mappings.db` and `client.caches.db`, plus separately stored media/thumbnail directories. Discover the actual configured database set and storage roots rather than assuming one SQLite file contains everything. The [official backup documentation](https://hydrusnetwork.github.io/hydrus/getting_started_installing.html) identifies this multi-file set; the [main client's database source](https://github.com/hydrusnetwork/hydrus/tree/master/hydrus/client/db) supplies the version-specific semantics.
+
+Required translator design:
+
+1. **Acquire a consistent input:** use an appropriate complete Hydrus backup or copy the required database set while the source client is stopped. Once the snapshot is acquired, the original client may be used again. Arbitrary sequential copying of live databases, or ignoring their WAL state, is not a coherent snapshot. Do not silently open the user's originals with a writer.
+2. **Identify source schema/version:** inspect SQLite schema metadata and the source client's own version/schema definitions. Pin matching upstream code. Record all input database identities, schema fingerprints, configured roots and consistency boundaries in the manifest.
+3. **Map source domains before coding bulk reads:** write `HYDRUS_SCHEMA_MAPPING.csv` with database/table or serialized-object type, source-version range, keys, statuses/enum meanings, foreign references, destination entity/field, conversion, verification and unsupported cases. Include dynamically named service tables; don't hardcode one user's integer service IDs.
+4. **Read source data independently:** open copied databases read-only, attach the needed files as read-only schemas where useful, and stream bounded/keyset batches. The translator may be an isolated migration utility in a different language if that makes reuse of safe source decoders practical. The installed application core must not depend on Hydrus's runtime afterward.
+5. **Decode serialized configuration explicitly:** audit main-client serialization modules and object-version migrations for options, saved searches/pages, subscriptions, downloader/parser definitions and service configuration. Implement known-format converters or bounded isolated decoders; do not execute arbitrary serialized objects. Retain unknown raw records with a precise report rather than claiming they contain nothing valuable.
+6. **Remap identities and relationships:** maintain durable old-to-new maps for files/hashes, tags/namespaces, services, ratings, URLs, duplicate groups/alternates and serialized objects. Preserve raw tag statuses, sibling/parent source rules, application policies, deletion/inbox state, notes, timestamps and other supported semantics. Internal numeric IDs are not destination identities.
+7. **Separate durable knowledge from derived caches:** raw assertions and user duplicate decisions are not disposable. Count/lookup/display caches may be rebuilt once their source semantics are imported. If a source cache can recover otherwise missing data, implement that as an explicit recovery mode with evidence, not normal authoritative input.
+8. **Handle original media separately:** translate configured storage locations and verify hashes/availability. Offer managed copy or linked existing locations; database import need not recopy a large media collection. Do not move or reorganize the user's existing Hydrus files as an implicit consequence of metadata translation.
+9. **Write only the destination schema:** stage and migrate into the new app's tables/indexes. No permanent attached-Hydrus SQL backend, shared writer or requirement to keep the source databases around for ordinary operation. Rebuild the destination's optimized projections from imported source facts.
+10. **Prove fidelity:** compare counts and sampled queries/relationships for the source version; include restart/resume/idempotence and missing-media cases. Provide a field-level coverage report and preserved raw source records for unsupported conversions. Do not use API limitations as an excuse to omit data that a known local source format can decode.
+
+### Secondary exchange modes
+
+- **API-assisted import:** useful for remote sources, incremental exchange, permission-limited environments and behavior comparison. Discover versions/capabilities and fetch bounded batches. The new library still owns the imported result; a running Hydrus process is not needed to browse or edit it afterward.
+- **Portable export import:** originals with sidecars, supported Hydrus tag archives and Gallery generation records. These are useful exchange paths with their own coverage, not a replacement for the full local-database translator.
+
+Official API and exchange documentation help with these secondary paths; local-schema migration is governed by the pinned source implementation and actual database version. Computed display tag results and original sibling/parent policies remain different data even when both are available.
 
 ### Required import sequence
 
-1. Discover source identity/version, permissions, service keys, library domains and storage access. Present which data is importable and which requires another mode.
+1. Discover source identity/schema version, complete database set, service definitions, library domains and storage access; inspect permissions if the API mode is chosen. Present which data is importable and which requires another mode.
 2. Create an import session and manifest with source version, filters, mappings, counts/checkpoints and chosen blob strategy: managed copy, verified existing local location or metadata-only remote reference.
 3. Stage catalog identity and file facts. Hash copied bytes; detect exact duplicates without losing paths, service memberships or associations. Missing/offline originals become explicit unavailable assets, not successful copied files.
 4. Import raw tag assertions by service/status, notes, ratings with scale definitions, URLs, timestamps and supported relationships. Import hierarchy/alias policies without substituting computed display tags for original assertions.
@@ -386,7 +442,7 @@ The [official Client API](https://hydrusnetwork.github.io/hydrus/developer_api.h
 8. Commit staged chunks transactionally and checkpoint. Repeating/resuming the import is idempotent and does not duplicate notes, relations or files. Preserve a rollback/undo path for app-owned changes.
 9. Let the user inspect the new library while Hydrus remains intact. Export a recoverable backup of the new app before treating migration as accepted.
 
-On remote sources that change during import, record the consistency boundary. Re-fetch/compare checkpoints or perform a reconciliation pass; do not describe a moving API enumeration as an atomic snapshot.
+For direct database import, retain the verified snapshot boundary across the entire database set. On secondary remote/API sources that change during import, record the weaker consistency boundary. Re-fetch/compare checkpoints or perform a reconciliation pass; do not describe a moving API enumeration as an atomic snapshot.
 
 ### Mapping requirements
 
@@ -403,21 +459,23 @@ On remote sources that change during import, record the consistency boundary. Re
 | Duplicate/alternate/false-positive relationships | Preserve distinct relation kinds and source evidence; don't reinterpret as lineage. |
 | Credentials, cookies and accounts | Not normal media metadata; migrate only via a separate explicit secure process if supported. |
 
-## 12. ComfyUI adapter and later local AI
+## 12. ComfyUI-Gallery conforms to the replacement; later local AI
 
-Preserve the proven direct setup concept: one configured ComfyUI address; adapter endpoint inside that ComfyUI installation; no separately launched bridge. The existing protocol uses one-use HMAC challenge/session authentication, installation pinning and scoped expiring media tickets. On a desktop rewrite, retain those security properties even if the transport/authentication implementation evolves. Do not authenticate using a file path, CORS alone or a permanent key embedded in thumbnail URLs.
+The replacement owns the canonical library and indexes. ComfyUI-Gallery is adapted to its scheme. It can continue to provide convenient UI inside ComfyUI, but prefix/rule editors and metadata/provenance writers speak the replacement's versioned contract rather than maintaining a competing permanent representation.
 
-First adapter scope:
+Required integration direction:
 
-- Discover/pair the instance and show reliable status/errors without blocking local browsing.
-- Browse the real ComfyUI output directory and subdirectories, including outputs not visible under a customized Gallery monitor root.
-- Retrieve compact metadata and lazy thumbnails/originals with bounded paging and refreshed media access.
-- Parse workflow graphs, source manifests, encoder run records, prefix/snapshot references and sidecars.
-- Import/copy/link media into the new local library by explicit policy; read-only browsing does not silently ingest every file.
-- Make ordinary app searches optionally include connected output, with precise location/capability badges and hash reconciliation.
-- Offer generation-aware context actions only when data supports them. Keep viewing/copying a workflow separate from executing it.
+1. **Define the contract in the replacement first:** stable identities, metadata assertions, prompt AST, recipe revisions, snapshots, source contributions/transformations, generation records, rules/attachments and per-image omissions. Specify schema versions and conformance fixtures.
+2. **Migrate existing fork data:** import the present Gallery prefix/snapshot JSON, rule attachments, notes, sidecars and source manifests into that contract. Preserve raw legacy evidence and memberships. This is legacy migration, not an ongoing translation service between two authoritative schemes.
+3. **Change Gallery producers and consumers:** newly created sources, queued runs, exported metadata, association edits and private policies use canonical IDs and structures. Share generated contract types or validated schemas and golden semantic fixtures across languages. The internal ComfyUI workflow graph remains a ComfyUI graph; store it as a raw external artifact linked to canonical generation/source records rather than pretending it is the library schema.
+4. **Ingest events independently of execution:** file discovery, generation completion and association edits upsert local canonical records using durable, idempotent operations. The app can also scan locally accessible output/sidecars without ComfyUI running. Network-only sources can be discovered when reachable and remain indexed afterward.
+5. **Keep browsing independent:** the app's grid, metadata matching, lineage/prefix/snapshot queries, recipe/rule editing and cached previews remain useful while ComfyUI is stopped. Only fetching an uncached remote original, discovering remote new files or executing a workflow requires that instance.
+6. **Retain simple connection behavior:** one configured instance, clear status, instance verification and authenticated/scoped operations. The current fork's HMAC sessions, installation pinning and media tickets are legacy implementation references; the new standalone app owns its own pairing credentials and does not require an operational Hydrus installation.
+7. **No user-run bridge:** app-side endpoints/workers start with the app; ComfyUI-side hooks start with its existing process. Native clients need not inherit browser CORS limitations, but identity, permissions and replacement confirmation remain necessary.
 
-Later, a generation integration can prepare/send sources/prompts to a selected ComfyUI workflow. That requires an explicit execution command, queue state and recorded inputs/outputs; browsing metadata does not authorize automatic generation. Local AI inside the app should be an optional worker/provider module for tagging, embeddings, OCR, similarity, masks or generation. Store model/version/configuration and human acceptance of suggestions. Derived AI tags remain attributed suggestions until accepted; do not overwrite curated Hydrus tags.
+ComfyUI execution is separate from metadata viewing: preparing sources/prompts and submitting a selected workflow requires an explicit command, queue state and recorded input/output relationships. Reading a graph never executes it automatically.
+
+Local AI inside the replacement is a later optional worker/provider module for tagging, embeddings, OCR, similarity, masks or generation. Keep models/version/configuration and human acceptance of suggestions. Derived AI tags remain attributed suggestions until accepted; do not overwrite curated imported metadata. The same canonical asset/provenance/recipe model should support a local worker without pretending it is a remote ComfyUI instance. Installing the app must not require a GPU or model download.
 
 ## 13. Reliability, privacy and performance
 
@@ -436,15 +494,15 @@ Later, a generation integration can prepare/send sources/prompts to a selected C
 
 ### Stage A — decisions and working foundation
 
-Deliver a new repository, architecture decisions, module boundaries, schema/migration runner, app packaging and the technology spikes. Show local folders in the proposed workspace and open real image/video media. No Hydrus process is required for basic startup or browsing.
+Deliver a new repository, a pinned main-client source audit, `HYDRUS_CORE_PARITY.md`, `HYDRUS_SCHEMA_MAPPING.csv`, architecture decisions, module boundaries, schema/migration runner, app packaging and technology spikes. Inventory our fork features alongside the core audit; neither replaces the other. Show local folders in the proposed workspace and open real image/video media. No Hydrus process is required for basic startup or browsing.
 
 ### Stage B — independent usable library
 
-Deliver durable managed/linked imports, hash identity/locations, tags/notes/ratings, lifecycle states, basic exact query AST, virtual grid/viewer, selection groups, jobs, export and backup/restore. Restart recovery is part of this stage. Demonstrate a real library being imported, edited, searched, exported and restored.
+Deliver durable managed/linked imports and the first direct Hydrus SQLite translation slice: file identity/locations, service-scoped tags, notes, ratings and lifecycle state. Add the basic exact query AST, virtual grid/viewer, selection groups, jobs, export and backup/restore. Restart recovery is part of this stage. Demonstrate a real library being imported, edited, searched, exported and restored.
 
 ### Stage C — migration and connected browsing
 
-Deliver API-assisted Hydrus migration with a coverage report, service-aware metadata preservation, ComfyUI direct output browsing and normal-search hybrid mode. Demonstrate a migrated subset remains browsable and editable with Hydrus and ComfyUI both stopped. Then demonstrate their reconnection without duplicate assets or lost local edits.
+Expand direct Hydrus database translation through the audited relationship and serialized-state mappings, with a coverage report and service-aware metadata preservation. Add ComfyUI output discovery/media browsing through canonical ingestion and normal-search source filters; API import is a secondary adapter. Establish the app-owned canonical integration contract and update Gallery to use it. A stopped ComfyUI must not disable ingested metadata/provenance/prefix queries. Demonstrate a migrated subset remains browsable and editable with Hydrus and ComfyUI both stopped. Then demonstrate their reconnection without duplicate assets or lost local edits.
 
 ### Stage D — creative-library parity
 
@@ -478,10 +536,20 @@ Add local AI providers and/or deeper ComfyUI workflow handoff only after the ind
 16. Edit the external Hydrus note during pending local delivery: retain both versions or ask for conflict resolution; no blind last-writer overwrite.
 17. Restore backup into a clean app profile: metadata, relationships, recipes, saved groups and available managed originals are consistent.
 18. Replace the GUI layout/theme with a Figma-driven design: the domain/search/import tests remain unchanged.
+19. Directly migrate a consistent local Hydrus database set into the new schema, then remove access to those copied source databases and stop Hydrus: native search/edit/maintenance continue to work. Retain the untouched source backup for rollback.
+20. Stop ComfyUI: metadata matching, prefixes/snapshots, lineage, rules and all ingested location records remain locally queryable. An uncached remote original shows unavailable media rather than disappearing from the index.
+21. Emit a new generation from the updated Gallery: it uses the replacement's canonical source/prefix/snapshot identities and enters the local indexes through an idempotent event, without a permanent old-Gallery-to-new-app translation layer.
+22. Import two different images with identical tags: consolidate a compatible recipe association when appropriate, never merge the distinct image identities or provenance families.
 
 ## 15. Source map and current validation starting points
 
-### Hydrus Web
+### Main Hydrus Network client — audit first
+
+Pin the upstream source for each supported installed database version. Start at `hydrus/client/db/ClientDB.py` and its module wiring, then trace relevant table definitions and migrations. The source tree includes modules for master definitions, mappings/storage/display caches, tag siblings/parents/application, file storage/metadata/timestamps/viewing statistics, notes, ratings, URLs, services/repositories, serialized objects, similarity, duplicate storage/decisions and maintenance. Inspect associated search, import/download, networking, serialization and GUI workflows; database rows alone do not explain all user-facing semantics.
+
+Deliver the source-domain parity audit and source-to-target schema map before labeling the core design complete. Reuse or port components on merit; do not assume the existing Python GUI or central controller must run inside the replacement. Use our fork appendices below to extend this main-client baseline.
+
+### Hydrus Web — feature appendix A
 
 - `src/app/hydrus-*.ts`: API contracts, file/tag/rating/note/service/page operations and metadata models.
 - `src/app/browse/`, `search.service.ts`, `hydrus-system-predicates.ts`: normal query behavior and search state.
@@ -491,7 +559,7 @@ Add local AI providers and/or deeper ComfyUI workflow handoff only after the ind
 - `scripts/browser-native-hybrid.cjs`, `browser-direct-gallery.cjs`, `media-relations.test.cjs`: current targeted integration regressions. Historical Node-bootstrap tests are not proof of the current connection path.
 - `COMFYUI_INTEGRATION.md`: setup/current integration scope. `docs/WINDOWS_HANDOFF.md` is historical context with superseded entries.
 
-### ComfyUI-Gallery
+### ComfyUI-Gallery — feature appendix B
 
 - `web/src/UnifiedGallery.tsx`, `ImageInfo.tsx`, `FloatingPanel.tsx`, `HydrusContext.tsx`: workspace, inspection, panels and service integration.
 - `PromptBoxes.ts`, `PromptBoxEditor.tsx`, `EncoderNode.tsx`, `EncoderSizing.ts`: prompt language, editing, host adaptation and layout constraints.
@@ -509,6 +577,8 @@ Recent targeted validation includes native/hybrid browser coverage, direct conne
 
 - [Flutter desktop support](https://docs.flutter.dev/platform-integration/desktop) — supported desktop targets and platform integration.
 - [React Native out-of-tree platforms](https://reactnative.dev/docs/out-of-tree-platforms) — desktop platform implementations and ownership.
+- [Main Hydrus client source](https://github.com/hydrusnetwork/hydrus) and [database modules](https://github.com/hydrusnetwork/hydrus/tree/master/hydrus/client/db) — primary functional/schema reference; pin the version at implementation time.
+- [Hydrus backup documentation](https://hydrusnetwork.github.io/hydrus/getting_started_installing.html) — database-set and storage context for obtaining a consistent migration input.
 - [Hydrus Client API documentation](https://hydrusnetwork.github.io/hydrus/developer_api.html) — endpoints, permissions, metadata and relationship semantics. Negotiate actual source version at runtime.
 - [Hydrus database merging](https://hydrusnetwork.github.io/hydrus/database_merging.html) — supported exchange approaches and their limits; not a universal full-state export promise.
 - [Hydrus database migration](https://hydrusnetwork.github.io/hydrus/database_migration.html) — storage/movement context; not an independent replacement's schema contract.
@@ -517,4 +587,4 @@ The checked-out Hydrus Web and Gallery repositories carry MIT license files. Pre
 
 ## 16. Compact prompt to start the implementation session
 
-> Read `docs/UNIFIED_GALLERY_SENDOFF.md` in the Hydrus Web reference checkout and inspect the referenced Gallery checkout. Build a new independent cross-platform media-library application, with Flutter as the initial technology candidate, a modular local core and safe Hydrus import. Preserve the user's existing libraries and applications. The destination is a full Hydrus-class client with our shared prompt-chip language, prefixes/snapshots, provenance, per-image omissions, editable rules/protections, folder/archive workflows, hybrid search, selection and viewer behavior. Start with a working standalone catalog/import/search/gallery/viewer slice plus ComfyUI output browsing; deeper local AI is optional later. You have creative freedom to redesign the GUI and replace historical hacks, while keeping it adaptable to a later Figma specification. Treat the reference projects as behavioral specifications, not a mandate to transplant their frameworks or architecture. Maintain an honest capability/migration ledger, recovery tests, platform evidence and a runnable packaged application at each milestone. Do not claim full client parity or lossless migration before the corresponding audit and acceptance tests pass.
+> Read `docs/UNIFIED_GALLERY_SENDOFF.md`. Build a full standalone replacement for the MAIN HYDRUS NETWORK CLIENT, with a new cross-platform GUI, modular core and independently designed database schema. Neither Hydrus Web nor ComfyUI-Gallery is the skeleton, and this is not a Hydrus wrapper or two frontend apps stitched together. Pin and audit the main client's source and local SQLite schema as the functional/data baseline; build a versioned read-only translator from a consistent complete database snapshot into our own schema. A live Hydrus process or its Client API must not be required for the migrated application's operation. Make the replacement the authoritative LOCAL owner of metadata, provenance, prefix/snapshot, rules and search indexes; those indexes must work with ComfyUI stopped. Define the canonical scheme in the replacement and change ComfyUI-Gallery to conform to it, using app-owned authenticated integration APIs and idempotent events. Legacy translation is an import boundary, not a permanent bridge between competing schemes. Use our Hydrus Web and ComfyUI-Gallery forks as REQUIRED feature appendices: preserve their metadata matching and synchronization, portable generation records, source/generation provenance, prefixes and immutable snapshots, structured chips, rules/protections, per-image omissions, hybrid search, archive/folder workflows and GUI customization. Audit both the main-client parity ledger and the fork-feature ledger; do not lose either. Flutter is the initial technology candidate, subject to desktop spikes. You have creative freedom to redesign the GUI and replace historical hacks, while remaining adaptable to a later Figma design. Begin with the main-client/schema audit and a working direct-import → independent-library → search/viewer/edit/recovery slice, alongside ComfyUI output browsing; deeper local AI is later work. Preserve the existing libraries and apps. Track schema coverage, semantics, recovery, platform evidence and runnable deliverables, and do not claim full parity or lossless conversion without corresponding tests.
