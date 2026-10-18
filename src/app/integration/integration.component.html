@@ -1,7 +1,6 @@
 <section class="integration">
   <div *ngIf="comfyBrowser" class="browser-heading"><h1>ComfyUI</h1><a routerLink="/settings/comfyui">Connection settings</a></div>
   <h2 *ngIf="!comfyBrowser">ComfyUI connection</h2>
-  <p *ngIf="!comfyBrowser"><a routerLink="/comfyui">Open ComfyUI media browser</a></p>
   <p class="connection-summary" aria-live="polite">{{connectionSummary}}</p>
   <p *ngIf="!comfyBrowser && integration.managed()">Your saved ComfyUI address and Hydrus connection establish the connection automatically.</p>
   <p *ngIf="!comfyBrowser && !integration.managed()">Connect an authenticated remote bridge, or start Hydrus Web locally with npm start for automatic setup.</p>

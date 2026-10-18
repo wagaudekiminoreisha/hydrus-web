@@ -10,7 +10,8 @@ import { HydrusApiSettingsGuard } from './hydrus-api-settings.guard';
 import { UploadFileComponent } from './upload-file/upload-file.component';
 
 const routes: Routes = [
-  {path: 'comfyui', data: {comfyBrowser: true}, loadComponent: () => import('./integration/integration.component').then(module => module.IntegrationComponent)},
+  // The remote media browser is deferred; old bookmarks return to ordinary browsing.
+  {path: 'comfyui', redirectTo: '/', pathMatch: 'full'},
   {path: 'integration', redirectTo: 'settings/comfyui', pathMatch: 'full'},
   {path: '', component: BrowseComponent, pathMatch: 'full', canActivate: [HydrusApiSettingsGuard]},
   {path: 'pages', component: PagesComponent, canActivate: [HydrusApiSettingsGuard]},
