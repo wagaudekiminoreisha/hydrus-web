@@ -1,14 +1,14 @@
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const {spawn}=require('node:child_process');const path=require('node:path');const assert=require('node:assert/strict');
 (async()=>{
- let child,browser,page,logs='';const base='http://127.0.0.1:8197',gallery='http://127.0.0.1:8191';const errors=[],requests=[];
+ let child,browser,page,logs='';const base='http://127.0.0.1:8197',gallery='http://127.0.0.1:8191';const errors=[],requests=[];let delayNextHydrusSearch=false;
  try{
   child=spawn(process.execPath,[path.join(__dirname,'serve-mobile.mjs')],{env:{...process.env,HYDRUS_WEB_HOST:'127.0.0.1',HYDRUS_WEB_PORT:'8197',HYDRUS_API_PROXY:'http://127.0.0.1:45870/'},stdio:['ignore','pipe','pipe']});child.stdout.on('data',chunk=>logs+=chunk);child.stderr.on('data',chunk=>logs+=chunk);
   for(let i=0;i<100;i++){try{if((await fetch(base)).ok)break;}catch{}await new Promise(resolve=>setTimeout(resolve,100));}
   browser=await chromium.launch({executablePath:process.env.CHROME_PATH,headless:true});page=await browser.newPage({serviceWorkers:'block',viewport:{width:1300,height:1000}});
   page.on('pageerror',error=>errors.push(error.message));page.on('request',request=>requests.push(request));
   await page.addInitScript(({base,gallery})=>{if(!localStorage.getItem('hydrus-web-1_hydrusApiKey')){localStorage.setItem('hydrus-web-1_hydrusApiKey','a'.repeat(64));localStorage.setItem('hydrus-web-1_hydrusApiUrl',base+'/hydrus-api/');}localStorage.setItem('hydrus-web-comfy-url',gallery);localStorage.setItem('hydrus-web-1_appSettings',JSON.stringify({version:1,sendViews:false,mediaPlayNext:false}));},{base,gallery});
-  await page.route('**/hydrus-api/get_files/search_files?**',async route=>{const tags=JSON.parse(new URL(route.request().url()).searchParams.get('tags')||'[]');if(tags.includes('local only tag'))await route.fulfill({json:{file_ids:[]}});else await route.continue();});
+  await page.route('**/hydrus-api/get_files/search_files?**',async route=>{if(delayNextHydrusSearch){delayNextHydrusSearch=false;await new Promise(resolve=>setTimeout(resolve,16000));}const tags=JSON.parse(new URL(route.request().url()).searchParams.get('tags')||'[]');if(tags.includes('local only tag'))await route.fulfill({json:{file_ids:[]}});else await route.continue();});
   const fixture=async(url,body,headers={})=>{const response=await fetch(url,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',...headers},body:body?JSON.stringify(body):undefined});assert(response.ok,await response.clone().text());return response.json();};
   const hashes=(await fixture(gallery+'/Gallery/source/hashes',{urls:['/static_gallery/study-1.png','/static_gallery/study-2.png','/static_gallery/local-only.png']})).hashes;
   const h1=hashes['/static_gallery/study-1.png'],h2=hashes['/static_gallery/study-2.png'],hl=hashes['/static_gallery/local-only.png'];
@@ -33,7 +33,10 @@ const {spawn}=require('node:child_process');const path=require('node:path');cons
   assert(await page.locator('mat-dialog-content').innerText().then(text=>text.includes('GalleryImageSource')));
   await page.getByRole('button',{name:'Close',exact:true}).click();
   await page.getByRole('button',{name:'Search Options',exact:true}).click();
-  await page.getByRole('menuitem',{name:'Include ComfyUI results'}).click();
+  delayNextHydrusSearch=true;await page.getByRole('menuitem',{name:'Include ComfyUI results'}).click();
+  await page.waitForFunction(()=>document.querySelectorAll('.gallery-source').length>0);
+  await page.getByText('Searching Hydrus and ComfyUI…',{exact:true}).waitFor({state:'hidden',timeout:30000});
+  assert.equal(await page.getByText(/Hydrus search failed/).count(),0,'a Hydrus query slower than 15 seconds must still merge');
   await page.waitForFunction(()=>document.querySelectorAll('.image-list-link').length===5);
   assert.equal(await page.locator('.gallery-source').count(),1,'hybrid adds only the local-only image');
   assert.equal(await page.evaluate(()=>localStorage.getItem('hydrus-web-browse-hybrid')),'true');
@@ -58,9 +61,12 @@ const {spawn}=require('node:child_process');const path=require('node:path');cons
   await page.goto(base+'/?tags='+encodeURIComponent(JSON.stringify(['@Native QA'])));
   await page.waitForFunction(()=>document.querySelectorAll('.image-list-link').length===3);
   await page.getByRole('link',{name:h2,exact:true}).click({button:'right'});await page.getByRole('menuitem',{name:'Find source / lineage images',exact:true}).click();
+  await page.locator('.mat-mdc-menu-panel').waitFor({state:'detached'});
   await page.waitForFunction(()=>document.querySelectorAll('.image-list-link').length===2);
+  await page.getByText('Searching Hydrus and ComfyUI…',{exact:true}).waitFor({state:'hidden'});
   await page.getByRole('link',{name:h2,exact:true}).click({button:'right'});
   await page.getByRole('menuitem',{name:'Find snapshot associations',exact:true}).click();
+  await page.locator('.mat-mdc-menu-panel').waitFor({state:'detached'});
   await page.waitForFunction(()=>document.querySelectorAll('.image-list-link').length===1);
   assert(await page.getByRole('checkbox',{name:'Snapshot associations',exact:true}).isChecked());
   assert(!(await page.getByRole('checkbox',{name:'Lineage · same source / generated from'}).isChecked()));

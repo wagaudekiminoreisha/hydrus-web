@@ -1,6 +1,6 @@
 import {HybridSearchService} from '../integration/hybrid-search.service';
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, firstValueFrom, timeout, catchError, filter, forkJoin, map, of, ReplaySubject, shareReplay, switchMap, tap, withLatestFrom } from 'rxjs';
+import { BehaviorSubject, firstValueFrom, catchError, filter, forkJoin, map, of, ReplaySubject, shareReplay, switchMap, tap, withLatestFrom } from 'rxjs';
 import { ErrorService } from '../error.service';
 import { ALL_KNOWN_TAGS_SERVICE_KEY, ALL_MY_FILES_SERVICE_KEY } from '../hydrus-services';
 import { defaultSort, HydrusSortType, SortInfo } from '../hydrus-sort';
@@ -142,7 +142,7 @@ export class BrowseStateService {
   }
 
   private searchFiles(searchTags:HydrusSearchTags,options:Parameters<SearchService['searchFiles']>[1]){
-    return this.hybrid.enabled()?this.hybrid.search(searchTags,tags=>firstValueFrom(this.searchHydrusFiles(tags,options).pipe(timeout(15000)))):this.searchHydrusFiles(searchTags,options);
+    return this.hybrid.enabled()?this.hybrid.search(searchTags,tags=>firstValueFrom(this.searchHydrusFiles(tags,options))):this.searchHydrusFiles(searchTags,options);
   }
   private searchHydrusFiles(
     searchTags: HydrusSearchTags,
