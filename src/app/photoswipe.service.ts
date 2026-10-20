@@ -265,6 +265,14 @@ export class PhotoswipeService {
       }
     });
 
+    // Native playback controls own their pointer gestures (including seeking).
+    // Prevent PhotoSwipe's gesture handler, not the browser's media event.
+    pswp.on('pointerDown', (e) => {
+      if ((e.originalEvent.target as Element)?.closest?.('video, audio')) {
+        e.preventDefault();
+      }
+    });
+
     pswp.on('tapAction', (e) => {
       if(!pswp.currSlide.content.isImageContent()) {
         e.preventDefault();
@@ -315,6 +323,11 @@ export class PhotoswipeService {
         return;
       }
       const keyboardEvent = e.originalEvent;
+      if (keyboardEvent.key !== 'Escape'
+          && (keyboardEvent.target as Element)?.closest?.('video, audio')) {
+        e.preventDefault();
+        return;
+      }
       if(
         selection
         && keyboardEvent.key.toLowerCase() === 's'
@@ -543,7 +556,7 @@ export class PhotoswipeService {
         const vid = document.createElement('video');
         vid.src = file.file_url;
         vid.autoplay = playNext || this.settingsService.appSettings.mediaAutoplay;
-        vid.controls = !this.platform.FIREFOX;
+        vid.controls = true;
         vid.poster = file.thumbnail_url;
         vid.loop = !playNext && this.settingsService.appSettings.mediaLoop;
         vid.playsInline = true;
