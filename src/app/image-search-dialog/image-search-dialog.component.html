@@ -2,6 +2,12 @@
 <mat-dialog-content>
   <p>Choose reference files, then the properties to search by. All results use the current Browse file and tag domains.</p>
   @if(busy) { <mat-progress-bar mode="indeterminate"></mat-progress-bar> }
+  @if(!busy && importMode === 'day' && importTimes.length) {
+    <p role="status">Import day added automatically: <strong>{{importDaySummary}}</strong>. Press Search to find files imported that day, or adjust the properties below.</p>
+  }
+  @if(!busy && references.length && !importTimes.length) {
+    <p role="status">Hydrus has no recorded import time for the selected references. No import-date constraint has been added.</p>
+  }
   <h3>Reference files</h3>
   <p>Load duplicates or visually similar files to find the other imports of this image. Select their import dates or saved batch/folder tags below.</p>
   <div class="reference-actions">

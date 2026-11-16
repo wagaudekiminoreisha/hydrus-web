@@ -140,6 +140,12 @@ an ordinary tag or system predicate, tap the chip and choose **Edit tag or
 predicate**. Accepting an autocomplete suggestion clears the incomplete input,
 including in OR searches; **Add all shown** remains available.
 
+Use **File Info → More options → Find files imported on the same day** to search
+immediately using the file's recorded import date. **Search from this file** also
+adds that date automatically as soon as its metadata loads; press Search or
+change the import-time option to broaden or narrow it. No manually entered
+system predicate is needed. If the timestamp is unavailable, the app says so.
+
 From **File Info → More options → Search from this file**, choose reference
 files and combine visual or exact-hash matching, import days or time windows,
 saved tags, source URL domains, dimensions, file type, and file size. Use AND or

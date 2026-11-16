@@ -1,4 +1,6 @@
 import { ImageSearchDialogComponent } from '../image-search-dialog/image-search-dialog.component';
+import { BrowseStateService } from '../browse/browse-state.service';
+import { imageImportSearch, imageImportTime } from '../image-search';
 import { Component, Inject, ChangeDetectionStrategy, Injectable } from '@angular/core';
 import { HydrusBasicFile, HydrusFile, FileCategory, HydrusTagServiceType } from '../hydrus-file';
 import {MatBottomSheetRef, MAT_BOTTOM_SHEET_DATA, MatBottomSheet} from '@angular/material/bottom-sheet';
@@ -88,7 +90,8 @@ export class FileInfoSheetComponent {
     private urlService: HydrusUrlService,
     private ratingsService: HydrusRatingsService,
     private exifReader: ExifReaderService,
-    private errorService: ErrorService
+    private errorService: ErrorService,
+    private browseState: BrowseStateService
   ) {
     if(data.editTags) {
       this.fileInfoSheetService.showStorageTags = true;
@@ -286,6 +289,20 @@ export class FileInfoSheetComponent {
       data: {file: this.data.file}, width: '680px', maxWidth: '96vw'
     }).afterClosed());
     if(result) this.searchTags(result);
+  }
+
+  async searchImportDay() {
+    try {
+      const file = await firstValueFrom(this.filesService.getFileById(this.data.file.file_id));
+      const time = imageImportTime(file, this.browseState.fileServiceKey$.value);
+      if(time === undefined) {
+        this.snackbar.open('Hydrus has no recorded import time for this file.', 'Close', {duration: 5000});
+        return;
+      }
+      this.searchTags(imageImportSearch([time], 'day', 30));
+    } catch(error) {
+      this.errorService.handleHydrusError(error, 'Could not read the file’s import date');
+    }
   }
 
   searchSimilarFiles() {

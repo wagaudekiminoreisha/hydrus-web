@@ -49,6 +49,7 @@ export class ImageSearchDialogComponent implements OnInit {
       if (!response.metadata?.length) throw new Error('No file metadata returned.');
       this.references = response.metadata;
       this.selectedHashes.add(this.data.file.hash);
+      this.importMode = this.importTimes.length ? 'day' : 'none';
     } catch {
       this.error = 'Could not load this file’s metadata. Check the Hydrus connection and Search Files permission.';
     } finally { this.busy = false; }
@@ -58,6 +59,7 @@ export class ImageSearchDialogComponent implements OnInit {
   get availableTags() { return imageTags(this.selectedReferences); }
   get availableDomains() { return imageDomains(this.selectedReferences); }
   get importTimes() { return this.selectedReferences.map(file => imageImportTime(file, this.fileServiceKey)).filter(time => time !== undefined); }
+  get importDaySummary() { return [...new Set(this.importTimes.map(time => new Date(time * 1000).toLocaleDateString()))].join(', '); }
   importTime(file: HydrusFileFromAPI) {
     const time = imageImportTime(file, this.fileServiceKey);
     return time === undefined ? 'Import time unavailable' : new Date(time * 1000).toLocaleString();

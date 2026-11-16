@@ -2,6 +2,11 @@ import { HydrusFileFromAPI } from './hydrus-file';
 import { anyImageSearch, imageDomains, imageImportSearch, imageImportTime, imageTags } from './image-search';
 
 describe('Search from an image', () => {
+  it('represents one import day as an ordinary predicate chip', () => {
+    const search = imageImportSearch([1700000000], 'day', 30);
+    expect(search.length).toBe(1);
+    expect(typeof search[0]).toBe('string');
+  });
   it('preserves paired dimensions when matching either reference', () => {
     const search = anyImageSearch([['w=100', 'h=200'], ['w=300', 'h=400']]);
     const matches = (terms: string[]) => search.every(clause => typeof clause === 'string' ? terms.includes(clause) : clause.some(term => terms.includes(term as string)));

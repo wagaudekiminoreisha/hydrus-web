@@ -39,6 +39,7 @@ describe('ImageSearchDialogComponent', () => {
 
   it('keeps additional constraints outside the OR of selected properties', async () => {
     await component.ngOnInit();
+    component.importMode = 'none';
     component.sameDimensions = true;
     component.sameSize = true;
     component.combine = 'any';
@@ -72,6 +73,7 @@ describe('ImageSearchDialogComponent', () => {
 
   it('does not submit an empty search or invalid similarity distance', async () => {
     await component.ngOnInit();
+    component.importMode = 'none';
     component.submit();
     expect(close).not.toHaveBeenCalled();
     component.identity = 'visual';
@@ -79,5 +81,20 @@ describe('ImageSearchDialogComponent', () => {
     component.submit();
     expect(close).not.toHaveBeenCalled();
     expect(component.error).toContain('Similarity distance');
+  });
+
+  it('attaches the recorded import day as soon as metadata loads', async () => {
+    await component.ngOnInit();
+    expect(component.importMode).toBe('day');
+    expect(JSON.stringify(component.buildSearch())).toContain('system:import time = ');
+    component.submit();
+    expect(close).toHaveBeenCalled();
+  });
+
+  it('does not invent an import date when Hydrus has none', async () => {
+    api.getFileMetadata.and.returnValue(of({metadata: [{...first, file_services: {current: {}}}]}));
+    await component.ngOnInit();
+    expect(component.importMode).toBe('none');
+    expect(component.importTimes).toEqual([]);
   });
 });

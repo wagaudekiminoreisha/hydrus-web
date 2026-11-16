@@ -52,7 +52,8 @@ export function imageImportSearch(times: number[], mode: 'day' | 'near', minutes
       const date = new Date(time * 1000);
       return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     }))];
-    return [dates.map(date => `system:import time = ${date}`)];
+    const predicates = dates.map(date => `system:import time = ${date}`);
+    return [predicates.length === 1 ? predicates[0] : predicates];
   }
   if (!Number.isFinite(minutes) || minutes < 1 || minutes > 10080) throw new Error('Choose an import window from 1 to 10080 minutes.');
   // Merge overlapping windows before converting their union to Hydrus clauses.

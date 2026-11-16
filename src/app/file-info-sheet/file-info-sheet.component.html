@@ -35,6 +35,7 @@
         }
         <mat-divider></mat-divider>
         @if(!file.gallery_local) {
+          <button mat-menu-item (click)="searchImportDay()"><mat-icon>event</mat-icon><span>Find files imported on the same day</span></button>
           <button mat-menu-item (click)="searchFromFile()"><mat-icon>manage_search</mat-icon><span>Search from this file</span></button>
         }
         <button mat-menu-item (click)="searchSimilarFiles()">
