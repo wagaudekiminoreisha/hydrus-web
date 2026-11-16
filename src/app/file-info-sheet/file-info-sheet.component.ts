@@ -1,3 +1,4 @@
+import { ImageSearchDialogComponent } from '../image-search-dialog/image-search-dialog.component';
 import { Component, Inject, ChangeDetectionStrategy, Injectable } from '@angular/core';
 import { HydrusBasicFile, HydrusFile, FileCategory, HydrusTagServiceType } from '../hydrus-file';
 import {MatBottomSheetRef, MAT_BOTTOM_SHEET_DATA, MatBottomSheet} from '@angular/material/bottom-sheet';
@@ -278,6 +279,13 @@ export class FileInfoSheetComponent {
   addSearchTags(tags: HydrusSearchTags) {
     this.dialogRef.dismiss(true);
     this.router.navigate(['/'], {queryParams: {'addTags': JSON.stringify(tags)}});
+  }
+
+  async searchFromFile() {
+    const result = await firstValueFrom(this.dialog.open<ImageSearchDialogComponent, {file: HydrusBasicFile}, HydrusSearchTags>(ImageSearchDialogComponent, {
+      data: {file: this.data.file}, width: '680px', maxWidth: '96vw'
+    }).afterClosed());
+    if(result) this.searchTags(result);
   }
 
   searchSimilarFiles() {

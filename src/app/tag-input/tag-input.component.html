@@ -9,11 +9,12 @@
             [style.--selection-group-search-color]="selectionGroupSearchColor($any(tag))"
             [removable]="true"
             (removed)="removeSearchTag(i)"
-            title="Selection group search"
+            title="Tap to edit selection group search"
+            (click)="editSearchTag($event, i, $any(tag))"
           >
             <mat-icon class="selection-group-search-icon">collections_bookmark</mat-icon>
             <div class="tag-chip-text">{{selectionGroupSearchLabel($any(tag))}}</div>
-            <button matChipRemove>
+            <button matChipRemove (click)="$event.stopPropagation()" aria-label="Remove search term">
               <mat-icon>cancel</mat-icon>
             </button>
           </mat-chip-row>
@@ -25,13 +26,13 @@
             (removed)="removeSearchTag(i)"
             [matMenuTriggerFor]="tagMenu"
             #searchTagMenuTrigger="matMenuTrigger"
-            [matMenuTriggerData]="{tag}"
+            [matMenuTriggerData]="{tag, index: i}"
             [attr.data-tag-namespace]="tag | tagNamespace"
-            title="Double-click to edit tag"
+            title="Tap for tag actions or double-click to edit"
             (dblclick)="searchTagMenuTrigger.closeMenu(); editSearchTag($event, i, $any(tag))"
           >
             <div class="tag-chip-text">{{tag}}</div>
-            <button matChipRemove>
+            <button matChipRemove (click)="$event.stopPropagation()" aria-label="Remove search term">
               <mat-icon>cancel</mat-icon>
             </button>
           </mat-chip-row>
@@ -42,11 +43,12 @@
           class="theming tag-chip tag-color"
           [removable]="true"
           (removed)="removeSearchTag(i)"
-          title="Double-click to edit OR search"
-          (dblclick)="editOrSearchTag($event, i, $any(tag))"
+          title="Tap to edit OR search"
+          (click)="editOrSearchTag($event, i, $any(tag))"
+          (contextmenu)="editOrSearchTag($event, i, $any(tag))"
         >
           <div class="tag-chip-text">{{searchTagLabel($any(tag))}}</div>
-          <button matChipRemove>
+          <button matChipRemove (click)="$event.stopPropagation()" aria-label="Remove search term">
             <mat-icon>cancel</mat-icon>
           </button>
         </mat-chip-row>
@@ -174,7 +176,10 @@
 
 
 <mat-menu #tagMenu="matMenu">
-  <ng-template matMenuContent let-tag="tag">
+  <ng-template matMenuContent let-tag="tag" let-index="index">
+    <button mat-menu-item (click)="editSearchTag($event, index, tag)">
+      <mat-icon>edit</mat-icon><span>Edit tag or predicate</span>
+    </button>
     <button mat-menu-item [cdkCopyToClipboard]="tag">
       <mat-icon>content_copy</mat-icon>
       <span>Copy tag</span>

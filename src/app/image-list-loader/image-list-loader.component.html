@@ -12,6 +12,8 @@
   [activeSelectionColor]="selectionGroups.activeGroup().color"
   [activeSelectionGroupName]="activeSelectionGroupName()"
   [showSelectionGroups]="selectionGroups.showGroups()"
+  [showThumbnailGroups]="settings.appSettings.showThumbnailGroups"
+  [showSelectionGlyph]="settings.appSettings.showThumbnailSelectionGlyph"
   (shiftSelect)="shiftSelect($event)"
   (selectionActions)="openSelectionMenu(selectionMenuTrigger)"
 ></app-image-list>
@@ -21,6 +23,7 @@
   </div>
 }
 
+@if(settings.appSettings.showSelectionShelf) {
 <aside
   class="selection-shelf"
   [class.selection-shelf--collapsed]="selectionShelfCollapsed()"
@@ -124,6 +127,7 @@
     </div>
   }
 </aside>
+}
 
 <mat-menu #selectionGroupMenu="matMenu">
   <ng-template matMenuContent let-group="group">
@@ -153,6 +157,7 @@
 
 <div
   class="select-fab"
+  [hidden]="!settings.appSettings.showSelectionFab"
   [matMenuTriggerFor]="selectionMenu"
   #selectionMenuTrigger="matMenuTrigger"
 >

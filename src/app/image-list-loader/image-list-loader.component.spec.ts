@@ -55,6 +55,11 @@ describe('ImageListLoaderComponent', () => {
     expect(setSelectionMode).toHaveBeenCalledOnceWith(true);
   });
 
+  it('exits selection mode when the last file is deselected in the gallery', () => {
+    component.selectionChanged(new Set());
+    expect(setSelectionMode).toHaveBeenCalledOnceWith(false);
+  });
+
   it('enters selection mode when switching the active group', () => {
     component.activateSelectionGroup('selection-group-2');
 

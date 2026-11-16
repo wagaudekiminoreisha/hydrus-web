@@ -1,0 +1,9 @@
+:host { display: block; min-width: 0; }
+mat-form-field, app-tag-input { display: block; width: 100%; margin-top: 12px; }
+.reference-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.references { display: flex; flex-direction: column; max-height: 180px; overflow: auto; margin: 12px 0; }
+.reference-label { overflow-wrap: anywhere; }
+.properties { display: flex; flex-direction: column; gap: 8px; }
+.scope-note { font-size: 12px; opacity: .8; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+details { margin-top: 16px; }

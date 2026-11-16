@@ -16,6 +16,7 @@ import { HydrusVersionService } from '../hydrus-version.service';
 import { HydrusFileDownloadService } from '../hydrus-file-download.service';
 import { MatMenuTrigger } from '@angular/material/menu';
 import { GENERIC_SELECTION_GROUP_ID, SelectionGroup, SelectionGroupsService } from '../selection-groups.service';
+import { SettingsService } from '../settings.service';
 import { SelectionGroupDialogComponent } from '../selection-group-dialog/selection-group-dialog.component';
 
 @Component({
@@ -74,10 +75,18 @@ export class ImageListLoaderComponent implements OnInit, OnChanges {
     private tagsService: HydrusTagsService,
     private versionService: HydrusVersionService,
     private downloadService: HydrusFileDownloadService,
+    public settings: SettingsService,
     public selectionGroups: SelectionGroupsService
   ) {
 
   }
+
+  private previousSelectionCount = 0;
+  private exitEmptySelection = effect(() => {
+    const count = this.numSelected();
+    if (this.previousSelectionCount > 0 && count === 0) this.selectionMode.set(false);
+    this.previousSelectionCount = count;
+  }, {allowSignalWrites: true});
 
   private reportSelection=effect(()=>{this.providedFiles();this.gallerySelection.emit(this.selected());});
   ngOnInit(): void {
@@ -142,9 +151,7 @@ export class ImageListLoaderComponent implements OnInit, OnChanges {
 
   selectionChanged(selected: Set<number>) {
     this.selectionGroups.setActiveFiles(selected);
-    if(selected.size > 0) {
-      this.selectionMode.set(true);
-    }
+    this.selectionMode.set(selected.size > 0);
   }
 
   activateSelectionGroup(groupID: string) {
@@ -167,7 +174,7 @@ export class ImageListLoaderComponent implements OnInit, OnChanges {
 
   clearSelectionGroup(group: SelectionGroup) {
     this.selectionGroups.clearGroup(group.id);
-    this.selectionMode.set(true);
+    this.selectionMode.set(this.selected().size > 0);
   }
 
   async editSelectionGroup(group: SelectionGroup) {
@@ -193,7 +200,7 @@ export class ImageListLoaderComponent implements OnInit, OnChanges {
       return;
     }
     this.selectionGroups.deleteGroup(group.id);
-    this.selectionMode.set(true);
+    this.selectionMode.set(this.selected().size > 0);
   }
 
   selectionGroupTooltip(group: SelectionGroup) {

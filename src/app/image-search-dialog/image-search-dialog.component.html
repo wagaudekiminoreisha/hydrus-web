@@ -1,0 +1,63 @@
+<h2 mat-dialog-title>Search from this file</h2>
+<mat-dialog-content>
+  <p>Choose reference files, then the properties to search by. All results use the current Browse file and tag domains.</p>
+  @if(busy) { <mat-progress-bar mode="indeterminate"></mat-progress-bar> }
+  <h3>Reference files</h3>
+  <p>Load duplicates or visually similar files to find the other imports of this image. Select their import dates or saved batch/folder tags below.</p>
+  <div class="reference-actions">
+    <button mat-stroked-button (click)="loadReferences('duplicates')" [disabled]="busy">Load known duplicates</button>
+    <button mat-stroked-button (click)="loadReferences('visual')" [disabled]="busy">Load visually similar files</button>
+  </div>
+  @if(referenceError) { <p role="status">{{referenceError}}</p> }
+  <div class="references">
+    @for(file of references; track file.hash) {
+      <mat-checkbox [checked]="selectedHashes.has(file.hash)" (change)="toggleReference(file.hash, $event.checked)">
+        <span class="reference-label">{{file.hash.slice(0, 12)}}… · {{importTime(file)}}</span>
+      </mat-checkbox>
+    }
+  </div>
+  <h3>Search properties</h3>
+  <mat-form-field appearance="outline"><mat-label>Image matching</mat-label>
+    <mat-select [(ngModel)]="identity">
+      <mat-option value="none">Any image — use properties below</mat-option>
+      <mat-option value="visual">Visually similar to references</mat-option>
+      <mat-option value="hash">Exact reference hashes</mat-option>
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline"><mat-label>Similarity distance</mat-label>
+    <input matInput type="number" min="0" max="64" step="1" [(ngModel)]="distance">
+    <mat-hint>0 is closest; larger values broaden visual matching.</mat-hint>
+  </mat-form-field>
+  <mat-form-field appearance="outline"><mat-label>Import time</mat-label>
+    <mat-select [(ngModel)]="importMode">
+      <mat-option value="none">Any import time</mat-option>
+      <mat-option value="day" [disabled]="!importTimes.length">Same calendar day as any reference</mat-option>
+      <mat-option value="near" [disabled]="!importTimes.length">Around any reference’s import time</mat-option>
+    </mat-select>
+  </mat-form-field>
+  @if(importMode === 'near') {
+    <mat-form-field appearance="outline"><mat-label>Minutes before and after each import</mat-label><input matInput type="number" min="1" max="10080" [(ngModel)]="minutes"></mat-form-field>
+  }
+  <p class="scope-note">An import-time window approximates a batch; it does not identify an exact import session. Calendar days follow your device’s timezone; Hydrus evaluates day predicates in its own timezone. Time windows include a UTC offset. If your Hydrus installation rejects precise times, use calendar days.</p>
+  <mat-form-field appearance="outline"><mat-label>Tags from selected references</mat-label>
+    <mat-select multiple [(ngModel)]="selectedTags">
+      @for(tag of availableTags; track tag) { <mat-option [value]="tag">{{tag}}</mat-option> }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline"><mat-label>Match selected tags</mat-label><mat-select [(ngModel)]="tagMatch"><mat-option value="any">Any selected tag (OR)</mat-option><mat-option value="all">All selected tags (AND)</mat-option></mat-select></mat-form-field>
+  <p class="scope-note">Use folder, batch, filename, or session tags when you saved them during import. The API does not expose the original import folder or repeated-import session history. Identical files are deduplicated by Hydrus.</p>
+  <mat-form-field appearance="outline"><mat-label>Source URL domains</mat-label><mat-select multiple [(ngModel)]="selectedDomains">@for(domain of availableDomains; track domain) { <mat-option [value]="domain">{{domain}}</mat-option> }</mat-select></mat-form-field>
+  <div class="properties">
+    <mat-checkbox [(ngModel)]="sameDimensions">Same width and height</mat-checkbox>
+    <mat-checkbox [(ngModel)]="sameFiletype">Same file type</mat-checkbox>
+    <mat-checkbox [(ngModel)]="sameSize">Same file size</mat-checkbox>
+  </div>
+  <mat-form-field appearance="outline"><mat-label>Combine selected properties</mat-label><mat-select [(ngModel)]="combine"><mat-option value="all">All selected properties (AND)</mat-option><mat-option value="any">Any selected property (OR)</mat-option></mat-select></mat-form-field>
+  <h3>Additional constraints</h3>
+  <p>These always narrow the generated search. Use OR chips, exclusions, ratings, file services, dates, and other Hydrus system predicates.</p>
+  <app-tag-input placeholder="Additional tags and system predicates" [(ngModel)]="extraTags" [enableSelectionGroups]="true"></app-tag-input>
+  <mat-checkbox [(ngModel)]="keepCurrent" [disabled]="!currentTags.length">Also require the current Browse search</mat-checkbox>
+  @if(preview) { <details><summary>Preview search predicates</summary><pre>{{preview}}</pre></details> }
+  @if(error) { <p role="alert">{{error}}</p> }
+</mat-dialog-content>
+<mat-dialog-actions align="end"><button mat-button mat-dialog-close>Cancel</button><button mat-flat-button color="primary" [disabled]="busy || !references.length" (click)="submit()">Search</button></mat-dialog-actions>

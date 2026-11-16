@@ -34,6 +34,9 @@
           </button>
         }
         <mat-divider></mat-divider>
+        @if(!file.gallery_local) {
+          <button mat-menu-item (click)="searchFromFile()"><mat-icon>manage_search</mat-icon><span>Search from this file</span></button>
+        }
         <button mat-menu-item (click)="searchSimilarFiles()">
           <mat-icon>image_search</mat-icon>
           <span>Search for similar files</span>

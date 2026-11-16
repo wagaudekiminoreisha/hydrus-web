@@ -15,6 +15,7 @@ import { MatButton } from '@angular/material/button';
 import { ThemeService } from './theme/theme.service';
 import { HydrusViewsService } from './hydrus-views.service';
 import { GalleryContextMenuService } from './gallery-context-menu/gallery-context-menu.service';
+import { HydrusFiletype } from './hydrus-file-mimes';
 
 
 function isContentType(content: Content | Slide, type: string) {
@@ -91,6 +92,7 @@ export class PhotoswipeService {
       clickToCloseNonZoomable: false,
       showHideAnimationType: 'none',
       ...GALLERY_SLIDER_OPTIONS,
+      counter: this.settingsService.appSettings.viewerShowCounter,
       zoom: false,
       close: false,
       //secondaryZoomLevel: 1,
@@ -133,6 +135,24 @@ export class PhotoswipeService {
     };
     document.addEventListener('visibilitychange', visibility);
     pswp.on('loadComplete', scheduleSlideshow);
+
+    pswp.on('afterInit', () => {
+      const settings = this.settingsService.appSettings;
+      const visibility: Record<string, boolean> = {
+        '.pswp__zoom-level': settings.viewerShowZoom,
+        '.pswp__button--slideshow': settings.viewerShowSlideshow,
+        '.pswp__button--select-current': settings.viewerShowSelect,
+        '.pswp__button--selection-actions': settings.viewerShowSelectionActions,
+        '.pswp__button--download': settings.viewerShowDownload,
+        '.pswp__button--share': settings.viewerShowShare,
+        '.pswp__button--info': settings.viewerShowInfo,
+        '.pswp__selection-status': settings.viewerShowSelectedStatus,
+        '.pswp__group-selection-status': settings.viewerShowGroups,
+      };
+      Object.entries(visibility).forEach(([selector, show]) => {
+        if (!show) pswp.element.querySelector<HTMLElement>(selector)?.style.setProperty('display', 'none');
+      });
+    });
 
     let selectionButton: HTMLElement | undefined;
     let selectionActionsButton: HTMLElement | undefined;
@@ -179,7 +199,7 @@ export class PhotoswipeService {
 
       if(groupSelectionStatus) {
         groupSelectionStatus.hidden = groupMemberships.length === 0;
-        groupSelectionStatus.style.top = currentSelected ? '108px' : '68px';
+        groupSelectionStatus.style.bottom = `calc(${currentSelected && this.settingsService.appSettings.viewerShowSelectedStatus ? 112 : 72}px + env(safe-area-inset-bottom))`;
         const membershipList = groupSelectionStatus.querySelector<HTMLElement>('.pswp__selection-membership-list');
         if(membershipList) {
           membershipList.replaceChildren(...groupMemberships.map(group => {
@@ -554,10 +574,13 @@ export class PhotoswipeService {
       if (isContentType(content, 'video') && content.element) {
         const file = content.data.file as HydrusBasicFile;
         const vid = document.createElement('video');
-        vid.src = file.file_url;
         vid.autoplay = playNext || this.settingsService.appSettings.mediaAutoplay;
         vid.controls = true;
-        vid.poster = file.thumbnail_url;
+        // A poster can prevent WebM playback in iOS WKWebView.
+        // https://github.com/videojs/videojs-v8/issues/135
+        if (!(this.platform.IOS && file.file_type === HydrusFiletype.VIDEO_WEBM)) {
+          vid.poster = file.thumbnail_url;
+        }
         vid.loop = !playNext && this.settingsService.appSettings.mediaLoop;
         vid.playsInline = true;
         vid.setAttribute('webkit-playsinline', '');
@@ -570,6 +593,7 @@ export class PhotoswipeService {
         vid.onerror = (e) => {
           content.onError();
         }
+        vid.src = file.file_url;
         content.element.prepend(vid);
       } else if (isContentType(content, 'audio') && content.element) {
         const file = content.data.file as HydrusBasicFile;

@@ -127,6 +127,40 @@ Some features may require a newer Hydrus version than the minimum.
 
 ## Development
 
+### Mobile gallery controls and image-based searches
+
+In **Settings → App Settings → Gallery controls**, each viewer toolbar item, the
+Selected badge, group overlay, thumbnail checkmarks, thumbnail group badges,
+selection shelf, and floating selection button can be hidden separately. Viewer
+controls wrap on narrow screens; group labels and counts stay on the same row.
+Clearing the last selected file exits selection mode, including from the viewer.
+
+Tap an OR search chip to edit its terms, or long-press it to open the editor. For
+an ordinary tag or system predicate, tap the chip and choose **Edit tag or
+predicate**. Accepting an autocomplete suggestion clears the incomplete input,
+including in OR searches; **Add all shown** remains available.
+
+From **File Info → More options → Search from this file**, choose reference
+files and combine visual or exact-hash matching, import days or time windows,
+saved tags, source URL domains, dimensions, file type, and file size. Use AND or
+OR across selected properties, then narrow the result with arbitrary tags,
+OR chips, system predicates, and optionally the current Browse search. The
+current Browse file and tag domains apply. A predicate preview is available.
+
+Load known duplicates or visually similar references to search around another
+copy's import date or batch tags. Discovery is limited to 256 references per
+request, with an explicit error if the query needs narrowing. Loading known
+duplicates requires **Manage File Relationships** permission and unrestricted
+hash-based metadata access. See the [Hydrus API documentation](https://hydrusnetwork.github.io/hydrus/developer_api.html#managing-file-relationships).
+
+Import windows approximate batches. Original folders and repeated-import session
+history are not present in the API's returned file metadata; use folder/session
+tags saved during import. Identical files are deduplicated by Hydrus. Calendar
+days use the Hydrus machine's timezone when evaluated; precise windows include a
+UTC offset and require a Hydrus installation with precise-date parsing support.
+These controls search Hydrus files; ComfyUI's existing lineage/prefix/snapshot
+actions remain available for its gallery files.
+
 ### Development server
 
 Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The app will automatically reload if you change any of the source files.

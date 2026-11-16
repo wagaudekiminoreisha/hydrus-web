@@ -260,6 +260,8 @@ export class TagInputComponent implements OnInit, ControlValueAccessor {
 
     //if (index >= 0) {
     this.searchTags.splice(index, 1);
+    if(this.editingTagIndex === index) this.cancelSearchTagEdit(new Event('cancel'));
+    else if(this.editingTagIndex !== null && index < this.editingTagIndex) this.editingTagIndex--;
     //}
 
     this.tags.emit(this.searchTags);
@@ -279,20 +281,11 @@ export class TagInputComponent implements OnInit, ControlValueAccessor {
       this.addSearchTag((negated ? '-' : '') + option.value.value);
     }
 
-    if(this.multiSelectAutocomplete && option.value.systemPredicate === undefined) {
-      const search = this.autocompleteSearch;
-      setTimeout(() => {
-        option.deselect();
-        this.tagCtrl.setValue(search, {emitEvent: false});
-        this.tagInput.nativeElement.value = search;
-        this.tagInput.nativeElement.focus();
-        this.matAutocompleteTrigger.openPanel();
-      });
-    } else {
-      this.autocompleteSearch = '';
-      this.tagInput.nativeElement.value = '';
-      this.tagCtrl.setValue(null);
-    }
+    // Each accepted suggestion completes the current input, including OR searches.
+    this.autocompleteSearch = '';
+    this.tagCtrl.setValue(null);
+    this.tagInput.nativeElement.value = '';
+    option.deselect?.();
   }
 
   editSearchTag(event: MouseEvent, index: number, tag: string) {

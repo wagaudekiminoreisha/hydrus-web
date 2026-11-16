@@ -679,3 +679,32 @@ mat-icon.mat-mdc-card-avatar {
 .main-content { padding-bottom:env(safe-area-inset-bottom); }
 
 .pswp__button--slideshow {width:auto;min-width:72px;padding:0 12px;color:white;font:600 14px system-ui;}
+
+// Keep native hidden state effective even when a control has display:flex.
+.pswp [hidden], .select-fab[hidden] { display: none !important; }
+.pswp__top-bar {
+  box-sizing: border-box;
+  height: auto;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: env(safe-area-inset-top) max(8px, env(safe-area-inset-right)) 4px max(8px, env(safe-area-inset-left));
+  background: linear-gradient(rgba(0, 0, 0, .7), rgba(0, 0, 0, .1));
+}
+.pswp__top-bar > * { flex-shrink: 0; }
+.pswp__counter { white-space: nowrap; margin-right: 8px; }
+.pswp__zoom-level { white-space: nowrap; margin: 0 8px; height: auto; }
+.pswp__top-bar .pswp__button { margin: 0; }
+.pswp__selection-status, .pswp__group-selection-status {
+  top: auto;
+  bottom: calc(72px + env(safe-area-inset-bottom));
+  right: max(12px, env(safe-area-inset-right));
+  max-width: calc(100% - 24px);
+  box-sizing: border-box;
+}
+.pswp__group-selection-status { max-height: 22vh; overflow: auto; }
+@media (max-width: 600px) {
+  .pswp__top-bar .pswp__button { width: 44px; min-width: 44px; height: 44px; min-height: 44px; }
+  .pswp__top-bar .pswp__button--slideshow { width: auto; padding: 0 8px; }
+  .pswp__counter { height: 44px; line-height: 44px; font-size: 14px; margin: 0 8px 0 0; }
+  .pswp__top-bar .pswp__preloader { display: none; }
+}

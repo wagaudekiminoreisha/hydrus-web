@@ -89,6 +89,8 @@ export class ImageListComponent implements OnInit, OnChanges, OnDestroy {
   activeSelectionGroupName = input('General selection');
 
   showSelectionGroups = input(true);
+  showThumbnailGroups = input(true);
+  showSelectionGlyph = input(true);
 
   anySelected = computed(() => this.selected().size > 0)
 

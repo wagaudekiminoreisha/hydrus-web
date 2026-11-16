@@ -2,7 +2,7 @@
   class="mdc-image-list__image-aspect-container"
   matBadge="✓"
   matBadgePosition="before"
-  [matBadgeHidden]="!selected()"
+  [matBadgeHidden]="!selected() || !showSelectionGlyph()"
   [ngClass]="{'selected' : selected()}"
   [style.--selection-color]="selectionColor()"
 >

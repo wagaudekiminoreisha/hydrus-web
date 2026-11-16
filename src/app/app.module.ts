@@ -1,3 +1,4 @@
+import { ImageSearchDialogComponent } from './image-search-dialog/image-search-dialog.component';
 import {SharedGalleryModule} from './shared-gallery.module';
 import { RxIf } from "@rx-angular/template/if";
 import { RxPush } from "@rx-angular/template/push";
@@ -149,6 +150,7 @@ const MAT_MODULES = [
     FilesPageComponent,
     SendComponent,
     FileInfoSheetComponent,
+    ImageSearchDialogComponent,
     ToolbarActionsComponent,
     JoinPipe,
     TagInputDialogComponent,

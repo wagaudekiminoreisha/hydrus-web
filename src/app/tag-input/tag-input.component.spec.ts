@@ -62,7 +62,7 @@ describe('TagInputComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('retains and reopens autocomplete so several OR tags can be clicked', fakeAsync(() => {
+  it('clears the incomplete text after accepting an OR autocomplete suggestion', fakeAsync(() => {
     component.multiSelectAutocomplete = true;
     const searchSubscription = component.filteredTagsFromAPI$.subscribe();
     component.tagCtrl.setValue('series:');
@@ -76,9 +76,9 @@ describe('TagInputComponent', () => {
 
     expect(component.searchTags.length).toBe(1);
     expect(component.searchTags[0] as string).toBe('series:test');
-    expect(component.tagCtrl.value).toBe('series:');
-    expect(inputElement.value).toBe('series:');
-    expect(autocompleteTrigger.openPanel).toHaveBeenCalled();
+    expect(component.tagCtrl.value).toBeNull();
+    expect(inputElement.value).toBe('');
+    expect(autocompleteTrigger.openPanel).not.toHaveBeenCalled();
     expect(deselect).toHaveBeenCalled();
     searchSubscription.unsubscribe();
   }));
@@ -173,9 +173,9 @@ describe('TagInputComponent', () => {
       'series:two',
       'series:three'
     ]);
-    expect(component.tagCtrl.value).toBe('series:');
+    expect(component.tagCtrl.value).toBeNull();
     expect(deselect).toHaveBeenCalled();
-    expect(autocompleteTrigger.openPanel).toHaveBeenCalled();
+    expect(autocompleteTrigger.openPanel).not.toHaveBeenCalled();
   }));
 
   it('preserves a leading minus on manually entered tags', () => {

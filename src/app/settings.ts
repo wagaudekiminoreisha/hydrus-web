@@ -25,6 +25,21 @@ export interface AppSettingsV1 {
   themeColor: string;
   themeVariant: SettingsThemeVariant;
   sendViews: boolean;
+  showSelectionShelf: boolean;
+  showSelectionFab: boolean;
+  showThumbnailSelectionGlyph: boolean;
+  showThumbnailGroups: boolean;
+  viewerShowCounter: boolean;
+  viewerShowZoom: boolean;
+  viewerShowSlideshow: boolean;
+  viewerShowSelect: boolean;
+  viewerShowSelectionActions: boolean;
+  viewerShowDownload: boolean;
+  viewerShowShare: boolean;
+  viewerShowInfo: boolean;
+  viewerShowSelectedStatus: boolean;
+  viewerShowGroups: boolean;
+
 }
 
 export type AppSettingsStorage = AppSettingsV1;
@@ -53,4 +68,19 @@ export const defaultAppSettings: AppSettings = {
   themeColor: '#3f51b5',
   themeVariant: SettingsThemeVariant.DEFAULT,
   sendViews: true,
+  showSelectionShelf: true,
+  showSelectionFab: true,
+  showThumbnailSelectionGlyph: true,
+  showThumbnailGroups: true,
+  viewerShowCounter: true,
+  viewerShowZoom: true,
+  viewerShowSlideshow: true,
+  viewerShowSelect: true,
+  viewerShowSelectionActions: true,
+  viewerShowDownload: true,
+  viewerShowShare: true,
+  viewerShowInfo: true,
+  viewerShowSelectedStatus: true,
+  viewerShowGroups: true,
+
 }

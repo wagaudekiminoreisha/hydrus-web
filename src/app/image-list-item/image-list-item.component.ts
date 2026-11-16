@@ -22,6 +22,8 @@ export class ImageListItemComponent {
 
   file = input.required<HydrusBasicFile>()
 
+  showSelectionGlyph = input(true);
+
   selected = input(false)
 
   selectionColor = input('#3f51b5')

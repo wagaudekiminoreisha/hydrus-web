@@ -20,8 +20,9 @@
           <app-image-list-item
             [file]="file"
             [selected]="selected().has(file.file_id)"
+            [showSelectionGlyph]="showSelectionGlyph()"
             [selectionColor]="activeSelectionColor()"
-            [selectionMemberships]="fileGroupMemberships(file.file_id)"
+            [selectionMemberships]="showThumbnailGroups() ? fileGroupMemberships(file.file_id) : []"
           ></app-image-list-item>
         </a>
       </li>

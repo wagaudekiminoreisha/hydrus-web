@@ -228,11 +228,14 @@ export class HydrusApiService {
     return this.apiGet<{ services?: HydrusServices, metadata: Identifiers extends true ? {file_id: number, hash: string }[] : Basic extends true ? HydrusBasicFileFromAPI[] : HydrusFileFromAPI[] }>('get_files/file_metadata', newParams, noCache);
   }
 
-  /**
-   * Generates a file's URL from its ID
-   * @param file_id the Hydrus ID of the file to get
-   * @return the URL of the raw full file referenced by the ID
-   */
+  /** Read known relationships; requires Manage File Relationships permission. */
+  public getFileRelationships(file_id: number, file_service_key: string) {
+    return this.apiGet<{file_relationships: Record<string, {king?: string; '8'?: string[]; '3'?: string[]}>}>(
+      'manage_file_relationships/get_file_relationships', {file_id, file_service_key}, true
+    );
+  }
+
+  /** Generate the raw file URL for a Hydrus ID. */
   public getFileURLFromId(file_id: number): string {
     return this.getAPIUrl() + 'get_files/file?file_id=' + file_id + '&Hydrus-Client-API-Access-Key=' + this.hydrusApiKey;
   }
