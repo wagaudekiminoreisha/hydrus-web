@@ -37,6 +37,7 @@ export interface AppSettingsV1 {
   viewerShowDownload: boolean;
   viewerShowShare: boolean;
   viewerShowInfo: boolean;
+  viewerShowKeyboardHelp: boolean;
   viewerShowSelectedStatus: boolean;
   viewerShowGroups: boolean;
 
@@ -80,6 +81,7 @@ export const defaultAppSettings: AppSettings = {
   viewerShowDownload: true,
   viewerShowShare: true,
   viewerShowInfo: true,
+  viewerShowKeyboardHelp: true,
   viewerShowSelectedStatus: true,
   viewerShowGroups: true,
 

@@ -108,7 +108,7 @@ const os = require('node:os');
         await page.getByRole('tab', {name: 'App Settings', exact: true}).click();
         const toggles = ['Selection groups shelf', 'Floating selection button', 'Thumbnail selection checkmarks', 'Thumbnail group badges',
           'Viewer file counter', 'Viewer zoom percentage', 'Viewer slideshow button', 'Viewer selection checkbox', 'Viewer selection actions',
-          'Viewer download button', 'Viewer share button', 'Viewer file info button', 'Viewer Selected badge', 'Viewer group membership overlay'];
+          'Viewer download button', 'Viewer share button', 'Viewer file info button', 'Viewer keyboard shortcuts button', 'Viewer Selected badge', 'Viewer group membership overlay'];
         for (const name of toggles) await page.getByRole('switch', {name, exact: true}).uncheck();
         await page.getByRole('button', {name: 'Save', exact: true}).click();
         await page.getByText('Settings saved', {exact: true}).waitFor();

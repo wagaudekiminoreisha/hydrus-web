@@ -16,6 +16,9 @@ import { ThemeService } from './theme/theme.service';
 import { HydrusViewsService } from './hydrus-views.service';
 import { GalleryContextMenuService } from './gallery-context-menu/gallery-context-menu.service';
 import { HydrusFiletype } from './hydrus-file-mimes';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { ViewerShortcutsDialogComponent } from './viewer-shortcuts-dialog/viewer-shortcuts-dialog.component';
+import { viewerKeyboardAction, viewerKeyboardTargetOwnsEvent } from './viewer-keyboard';
 
 
 function isContentType(content: Content | Slide, type: string) {
@@ -58,7 +61,8 @@ export class PhotoswipeService {
     private injector: EnvironmentInjector,
     private themeService: ThemeService,
     private viewsService: HydrusViewsService,
-    private galleryContextMenu: GalleryContextMenuService
+    private galleryContextMenu: GalleryContextMenuService,
+    private dialog: MatDialog
   ) { }
 
   private processedFiles = new Map<string, SlideData>();
@@ -115,7 +119,8 @@ export class PhotoswipeService {
     let slideshowTimer: ReturnType<typeof setTimeout> | undefined;
     let slideshowButton: HTMLElement | undefined;
     const clearSlideshow = () => { clearTimeout(slideshowTimer); slideshowTimer = undefined; };
-    const advance = async () => { if (!playNext || document.hidden) return; if (this.bottomSheet._openedBottomSheetRef) { slideshowTimer = setTimeout(advance, 1000); return; } if(pswp.currIndex>=items.length-1&&selection?.hasMore?.())await extendGallery(); if(galleryClosed)return; if (pswp.currIndex >= items.length - 1) { playNext = false; updateSlideshowButton(); return; } pswp.next(); };
+    const overlayOpen = () => !!this.bottomSheet._openedBottomSheetRef || this.dialog.openDialogs.length > 0 || !!document.querySelector('[role="menu"]');
+    const advance = async () => { if (!playNext || document.hidden) return; if (overlayOpen()) { slideshowTimer = setTimeout(advance, 1000); return; } if(pswp.currIndex>=items.length-1&&selection?.hasMore?.())await extendGallery(); if(galleryClosed)return; if (pswp.currIndex >= items.length - 1) { playNext = false; updateSlideshowButton(); return; } pswp.next(); };
     const updateSlideshowButton = () => { if(slideshowButton) { slideshowButton.innerText = playNext ? 'Pause' : 'Play next'; slideshowButton.setAttribute('aria-pressed', String(playNext)); } };
     const scheduleSlideshow = () => {
       clearSlideshow();
@@ -124,6 +129,33 @@ export class PhotoswipeService {
       const media = content.element?.querySelector<HTMLMediaElement>('.pswp-media');
       if(media) { media.loop = !playNext && this.settingsService.appSettings.mediaLoop; return; }
       if(content.isImageContent() && content.state === 'loaded') slideshowTimer = setTimeout(advance, Math.max(1, Number(this.settingsService.appSettings.slideshowIntervalSeconds) || 5) * 1000);
+    };
+    const toggleSlideshow = () => {
+      playNext = !playNext;
+      updateSlideshowButton();
+      const media = pswp.currSlide?.content.element?.querySelector<HTMLMediaElement>('.pswp-media');
+      if(media) {
+        media.loop = !playNext && this.settingsService.appSettings.mediaLoop;
+        if(playNext) media.play().catch(() => {});
+      }
+      scheduleSlideshow();
+    };
+    const openInfo = () => {
+      const file = pswp.currSlide?.data.file as HydrusBasicFile | undefined;
+      if(!file) return;
+      FileInfoSheetComponent.open(this.bottomSheet, file).afterDismissed().pipe(take(1)).subscribe(result => {
+        if(result) pswp.close();
+        else if(!galleryClosed) scheduleSlideshow();
+      });
+    };
+    let shortcutsDialog: MatDialogRef<ViewerShortcutsDialogComponent> | undefined;
+    const openShortcuts = () => {
+      if(shortcutsDialog) return;
+      shortcutsDialog = this.dialog.open(ViewerShortcutsDialogComponent, {width: '560px', maxWidth: '96vw'});
+      shortcutsDialog.afterClosed().pipe(take(1)).subscribe(() => {
+        shortcutsDialog = undefined;
+        if(!galleryClosed) scheduleSlideshow();
+      });
     };
     const visibility = () => {
       if(document.hidden) {
@@ -146,12 +178,21 @@ export class PhotoswipeService {
         '.pswp__button--download': settings.viewerShowDownload,
         '.pswp__button--share': settings.viewerShowShare,
         '.pswp__button--info': settings.viewerShowInfo,
+        '.pswp__button--keyboard-help': settings.viewerShowKeyboardHelp,
         '.pswp__selection-status': settings.viewerShowSelectedStatus,
         '.pswp__group-selection-status': settings.viewerShowGroups,
       };
       Object.entries(visibility).forEach(([selector, show]) => {
         if (!show) pswp.element.querySelector<HTMLElement>(selector)?.style.setProperty('display', 'none');
       });
+      const shortcuts: Record<string, string> = {
+        slideshow: 'Space P', 'select-current': 'S Shift+S', 'selection-actions': 'A',
+        info: 'I', download: 'D', 'keyboard-help': 'Shift+/', 'custom-close': 'Escape'
+      };
+      Object.entries(shortcuts).forEach(([name, keys]) => {
+        pswp.element.querySelector(`.pswp__button--${name}`)?.setAttribute('aria-keyshortcuts', keys);
+      });
+      pswp.element.focus({preventScroll: true});
     });
 
     let selectionButton: HTMLElement | undefined;
@@ -188,7 +229,7 @@ export class PhotoswipeService {
           count.innerText = String(selectedCount);
         }
         selectionActionsButton.hidden = selectedCount === 0;
-        selectionActionsButton.title = `${groupName} options (${selectedCount})`;
+        selectionActionsButton.title = `${groupName} options (${selectedCount}) (A)`;
         selectionActionsButton.setAttribute('aria-label', `${groupName} options for ${selectedCount} files`);
       }
 
@@ -338,30 +379,44 @@ export class PhotoswipeService {
     });
 
     pswp.on('keydown', (e) => {
-      if (this.bottomSheet._openedBottomSheetRef) {
-        e.preventDefault();
-        return;
-      }
       const keyboardEvent = e.originalEvent;
-      if (keyboardEvent.key !== 'Escape'
-          && (keyboardEvent.target as Element)?.closest?.('video, audio')) {
+      if (overlayOpen() || viewerKeyboardTargetOwnsEvent(keyboardEvent)) {
         e.preventDefault();
         return;
       }
-      if(
-        selection
-        && keyboardEvent.key.toLowerCase() === 's'
-        && !keyboardEvent.ctrlKey
-        && !keyboardEvent.altKey
-        && !keyboardEvent.metaKey
-      ) {
-        e.preventDefault();
-        toggleCurrentSelection();
+      const action = viewerKeyboardAction(keyboardEvent);
+      if(!action) return;
+      e.preventDefault();
+      keyboardEvent.preventDefault();
+      if(keyboardEvent.repeat) return;
+      switch(action) {
+        case 'select': toggleCurrentSelection(); break;
+        case 'select-next': {
+          const file = currentFile();
+          if(!file || !selection) break;
+          clearSlideshow();
+          if(!selection.isSelected(file.file_id)) selection.toggle(file);
+          const index = pswp.currIndex;
+          void (async () => {
+            if(index >= items.length - 1 && selection.hasMore?.()) await extendGallery();
+            if(!galleryClosed && pswp.currIndex === index) {
+              pswp.next();
+              scheduleSlideshow();
+            }
+          })();
+          break;
+        }
+        case 'slideshow': toggleSlideshow(); break;
+        case 'selection-actions': if(selection?.selectedCount()) selection.openActions(); break;
+        case 'info': openInfo(); break;
+        case 'download': if(currentFile()) void this.downloadService.saveFile(currentFile()!); break;
+        case 'help': openShortcuts(); break;
       }
     });
 
     pswp.on('uiRegister', () => {
-      pswp.ui.registerElement({name:'slideshow',order:10,isButton:true,html:playNext?'Pause':'Play next',title:'Play next / slideshow',onInit:element=>{slideshowButton=element;updateSlideshowButton();},onClick:()=>{playNext=!playNext;updateSlideshowButton();const media=pswp.currSlide?.content.element?.querySelector<HTMLMediaElement>('.pswp-media');if(media){media.loop=!playNext&&this.settingsService.appSettings.mediaLoop;if(playNext)media.play().catch(()=>{});}scheduleSlideshow();}});
+      pswp.ui.registerElement({name:'slideshow',order:10,isButton:true,html:playNext?'Pause':'Play next',title:'Play next / slideshow (Space or P)',onInit:element=>{slideshowButton=element;updateSlideshowButton();},onClick:toggleSlideshow});
+      pswp.ui.registerElement({name:'keyboard-help',order:16,isButton:true,tagName:'button',html:'<span class="mat-icon material-icons">keyboard</span>',title:'Keyboard shortcuts (?)',onClick:openShortcuts});
       if(selection) {
         pswp.ui.registerElement({
           name: 'select-current',
@@ -381,6 +436,7 @@ export class PhotoswipeService {
           order: 12,
           isButton: true,
           tagName: 'button',
+          title: 'Selection actions (A)',
           html: '<span class="mat-icon material-icons">playlist_add_check</span><span class="pswp__selection-count">0</span>',
           onInit: el => {
             selectionActionsButton = el;
@@ -417,18 +473,9 @@ export class PhotoswipeService {
         order: 15,
         isButton: true,
         tagName: 'button',
+        title: 'File info (I)',
         html: '<span class="mat-icon material-icons">info_outlined</span>',
-        onClick: (event, el, pswp) => {
-          const file = pswp.currSlide.data.file as HydrusBasicFile;
-          FileInfoSheetComponent.open(this.bottomSheet, file)
-            .afterDismissed()
-            .pipe(take(1))
-            .subscribe(res => {
-              if(res) {
-                pswp.close();
-              }
-            });
-        }
+        onClick: openInfo
       });
 
       pswp.ui.registerElement({
@@ -445,6 +492,7 @@ export class PhotoswipeService {
         order: 13,
         isButton: true,
         tagName: 'button',
+        title: 'Download current file (D)',
         html: '<span class="mat-icon material-icons">get_app</span>',
         onClick: (event, el, pswp) => {
           const file = pswp.currSlide.data.file as HydrusBasicFile;
@@ -677,6 +725,7 @@ export class PhotoswipeService {
 
     pswp.on('close', () => {
       galleryClosed=true;
+      shortcutsDialog?.close();
       clearSlideshow(); document.removeEventListener('visibilitychange', visibility);
       this.galleryContextMenu.close();
       selectionSubscription?.unsubscribe();

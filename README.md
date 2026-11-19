@@ -135,6 +135,15 @@ selection shelf, and floating selection button can be hidden separately. Viewer
 controls wrap on narrow screens; group labels and counts stay on the same row.
 Clearing the last selected file exits selection mode, including from the viewer.
 
+The slideshow viewer supports **S** to select/deselect, **Shift+S** to select and
+advance, **Space** or **P** to toggle automatic advancement, **A** for selection
+actions, **I** for file info, and **D** to download the current file. Arrow keys
+navigate and **Z** toggles image zoom. Press **?** or the keyboard button for the
+shortcut guide; **Esc** closes a popup or the viewer. Shortcuts also work with
+their toolbar buttons hidden. Text fields, menus, dialogs, and native audio/video
+controls retain their own keys. Holding an action key does not repeat selection
+changes or downloads. The keyboard button has its own visibility setting.
+
 Tap an OR search chip to edit its terms, or long-press it to open the editor. For
 an ordinary tag or system predicate, tap the chip and choose **Edit tag or
 predicate**. Accepting an autocomplete suggestion clears the incomplete input,

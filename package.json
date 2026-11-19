@@ -1,6 +1,6 @@
 {
   "name": "hydrus-web",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "description": "A web, mobile, and desktop interface for the Hydrus Client API.",
   "author": "Hydrus Web contributors",
   "main": "electron/main.cjs",
